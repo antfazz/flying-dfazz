@@ -887,10 +887,10 @@ export default function GameCanvas({
   return (
     <div 
       ref={containerRef}
-      className="relative w-full max-w-5xl mx-auto flex flex-col items-center justify-center p-1 select-none"
+      className="relative w-full max-w-none mx-auto flex flex-col items-center justify-center p-0.5 landscape:p-0 select-none"
     >
       {/* MOBILE GAME HUD DISPLAY BAR */}
-      <div className="w-full flex justify-between items-center bg-[#faf8f2] border-2 border-slate-800 rounded-xl px-2.5 py-1.5 sm:px-4 sm:py-2 mb-1.5 font-mono shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] select-none">
+      <div className="w-full flex justify-between items-center bg-[#faf8f2] border-2 border-slate-800 rounded-xl px-2 py-1 landscape:px-2.5 landscape:py-1 sm:px-4 sm:py-2 mb-1 landscape:mb-1 font-mono shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] select-none">
         {/* Lives / Heart fuel display */}
         <div id="hud-lives" className="flex items-center gap-1">
           <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold mr-1 sm:mr-1.5 flex items-center gap-0.5"><Target className="w-3 h-3 text-emerald-500" /> Crew</span>
@@ -978,7 +978,7 @@ export default function GameCanvas({
       )}
 
       {/* HORIZONTAL WRAP CONSOLE WITH TACTILE SIDE CONTROLLERS */}
-      <div className="w-full flex flex-row items-center justify-center gap-2 sm:gap-4 select-none">
+      <div className="w-full flex flex-row items-stretch justify-center gap-1.5 sm:gap-3 select-none">
         
         {/* LEFT STEERPAD AREA (ONLY VISIBLE IN HORIZONTAL MODE/LANDSCAPE) */}
         {gameState === 'PLAYING' && !isGamePaused && (
@@ -987,20 +987,20 @@ export default function GameCanvas({
             onPointerMove={handlePadPointerMove}
             onPointerUp={handlePadPointerUp}
             onPointerLeave={handlePadPointerUp}
-            className="hidden landscape:flex flex-col items-center justify-between h-[180px] sm:h-[260px] md:h-[300px] w-14 sm:w-20 md:w-24 bg-[#faf8f2] border-4 border-slate-800 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] p-2 font-mono hover:bg-[#fffdf7] cursor-ns-resize touch-none select-none transition-colors"
+            className="hidden landscape:flex flex-col items-center justify-between w-24 sm:w-32 md:w-36 bg-[#faf8f2] border-4 border-slate-800 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] p-2 font-mono hover:bg-[#fffdf7] cursor-ns-resize touch-none select-none transition-colors"
           >
             <span className="text-[7px] sm:text-[9px] text-slate-400 font-extrabold uppercase tracking-widest text-center leading-none">STEER</span>
-            <div className="flex flex-col items-center gap-1.5 pointer-events-none">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[10px] font-bold animate-bounce mb-1">↑</div>
+            <div className="flex flex-col items-center gap-1 sm:gap-2 pointer-events-none">
+              <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[9px] sm:text-xs font-bold animate-bounce mb-0.5">↑</div>
               <div className="text-[7px] sm:text-[9px] text-slate-500 font-extrabold text-center leading-none uppercase tracking-tight">DRAG<br/>HERE</div>
-              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[10px] font-bold mt-1">↓</div>
+              <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[9px] sm:text-xs font-bold mt-0.5">↓</div>
             </div>
             <span className="text-[7px] sm:text-[9px] text-slate-400 font-bold uppercase leading-none">PAD</span>
           </div>
         )}
 
         {/* CANVAS DRAWING ELEMENT FRAME */}
-        <div className="relative overflow-hidden border-4 border-slate-800 rounded-2xl bg-[#faf8f2] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] shrink select-none flex items-center justify-center max-w-full max-h-[calc(100vh-100px)] max-h-[calc(100dvh-100px)] sm:max-h-[calc(100dvh-120px)] w-fit aspect-[850/480] shadow-slate-800">
+        <div className="relative overflow-hidden border-4 border-slate-800 rounded-2xl bg-[#faf8f2] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] shrink select-none flex items-center justify-center max-w-full max-h-[calc(100vh-80px)] max-h-[calc(100dvh-80px)] sm:max-h-[calc(100dvh-100px)] w-fit aspect-[850/480] shadow-slate-800">
           <canvas
             ref={canvasRef}
             width={GAME_WIDTH}
@@ -1009,7 +1009,7 @@ export default function GameCanvas({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
-            className="max-w-full max-h-[calc(100vh-108px)] max-h-[calc(100dvh-108px)] sm:max-h-[calc(100dvh-128px)] w-auto h-auto aspect-[850/480] block select-none bg-inherit cursor-pointer touch-none"
+            className="max-w-full max-h-[calc(100vh-82px)] max-h-[calc(100dvh-82px)] sm:max-h-[calc(100dvh-108px)] w-auto h-auto aspect-[850/480] block select-none bg-inherit cursor-pointer touch-none"
             style={{ imageRendering: 'pixelated' }}
           />
 
@@ -1039,21 +1039,21 @@ export default function GameCanvas({
 
         {/* RIGHT WEAPONS BLAST PAD AREA (ONLY VISIBLE IN HORIZONTAL MODE/LANDSCAPE) */}
         {gameState === 'PLAYING' && !isGamePaused && settings.shootingEnabled && (
-          <div className="hidden landscape:flex flex-col items-center justify-between h-[180px] sm:h-[260px] md:h-[300px] w-14 sm:w-20 md:w-24 bg-[#faf8f2] border-4 border-slate-800 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] p-2 font-mono select-none">
-            <span className="text-[7px] sm:text-[9px] text-slate-400 font-extrabold uppercase tracking-widest text-center leading-none">WEAPON</span>
+          <div className="hidden landscape:flex flex-col items-center justify-between w-12 sm:w-16 md:w-18 bg-[#faf8f2] border-4 border-slate-800 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] p-1.5 font-mono select-none">
+            <span className="text-[6px] sm:text-[8px] text-slate-400 font-extrabold uppercase tracking-widest text-center leading-none">WEAPON</span>
             
             <button
               onPointerDown={(e) => {
                 e.preventDefault();
                 firePlaneBullet();
               }}
-              className="w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-rose-500 hover:bg-rose-600 active:scale-90 hover:scale-105 rounded-full border-2 sm:border-4 border-slate-800 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] sm:shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-center items-center cursor-pointer outline-none select-none transition-all active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+              className="w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-rose-500 hover:bg-rose-600 active:scale-95 hover:scale-105 rounded-full border-2 border-slate-800 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] sm:shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-center items-center cursor-pointer outline-none select-none transition-all active:translate-y-0.5 active:shadow-[0.5px_0.5px_0px_0px_rgba(15,23,42,1)]"
             >
-              <Zap className="w-3.5 h-3.5 sm:w-5 sm:h-5 fill-white text-rose-100 pointer-events-none" />
-              <span className="text-[7px] sm:text-[8px] md:text-[10px] font-black tracking-widest leading-none mt-1 sm:mt-1.5 pointer-events-none">BLAST</span>
+              <Zap className="w-3 h-3 sm:w-4.5 sm:h-4.5 fill-white text-rose-100 pointer-events-none" />
+              <span className="text-[5px] sm:text-[7px] md:text-[8px] font-black tracking-widest leading-none mt-0.5 sm:mt-1 pointer-events-none">BLAST</span>
             </button>
 
-            <span className="text-[7px] sm:text-[9px] text-slate-400 font-bold uppercase leading-none">FIRE</span>
+            <span className="text-[6px] sm:text-[8px] text-slate-400 font-bold uppercase leading-none">FIRE</span>
           </div>
         )}
 
