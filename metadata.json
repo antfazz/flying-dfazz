@@ -1,0 +1,6 @@
+{
+  "name": "The Flying D-Fazz",
+  "description": "A delightful flying game featuring a child-like pencil sketch aesthetic. Navigate your hand-drawn plane safely through white and black clouds, squeeze through tight spots, and shoot pencil-drawn missiles to blast obstacles in this touch-friendly responsive arcade experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

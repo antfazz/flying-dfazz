@@ -1,0 +1,21 @@
+{
+  "short_name": "D-Fazz Plane",
+  "name": "The Flying D-Fazz",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/192/000000/paper-plane.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://img.icons8.com/color/512/000000/paper-plane.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./",
+  "background_color": "#faf8f2",
+  "theme_color": "#fed330",
+  "display": "standalone",
+  "orientation": "landscape"
+}
