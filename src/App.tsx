@@ -77,7 +77,7 @@ export default function App() {
 
   return (
     <div 
-      className="h-[100dvh] w-full bg-[#1e272e] flex flex-col items-center justify-center p-1.5 sm:p-4 overflow-hidden select-none"
+      className="h-[100dvh] w-full bg-[#1e272e] flex flex-col items-center justify-center p-1 landscape:p-1.5 sm:p-4 overflow-hidden select-none"
       style={{
         // Give it an authentic student desk dark vinyl laminate or leather pad background
         backgroundColor: '#1c242c',
@@ -102,7 +102,9 @@ export default function App() {
       </div>
 
       {/* Main Assembly wrapper combining overlay card with actual interactive physics board */}
-      <div className="w-full max-w-4xl flex flex-col relative rounded-2xl">
+      <div className={`w-full flex flex-col relative rounded-2xl transition-all duration-300 ${
+        gameState === 'PLAYING' ? 'max-w-[100dvw] sm:max-w-5xl lg:max-w-6xl' : 'max-w-4xl'
+      }`}>
         
         {/* Core Canvas Play Board Wrapper */}
         <GameCanvas
@@ -128,7 +130,7 @@ export default function App() {
       </div>
 
       {/* FOOTER DESK CREDITS */}
-      <div className="mt-2 sm:mt-4 text-center select-none opacity-40 text-slate-400 font-mono text-[9px] sm:text-[10px] max-w-sm px-4 flex flex-col gap-0.5 hidden sm:block">
+      <div className="mt-2 sm:mt-4 text-center select-none opacity-40 text-slate-400 font-mono text-[9px] sm:text-[10px] max-w-sm px-4 flex flex-col gap-0.5 hidden sm:block landscape:hidden">
         <p className="flex items-center justify-center gap-1">
           <span>✎ Handcrafted child drawing concept code.</span>
         </p>
