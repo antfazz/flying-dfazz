@@ -60,7 +60,7 @@ class AudioEngine {
     const gain = this.ctx.createGain();
     
     osc.type = 'triangle';
-    // Fast frequency sweep down from 600Hz to 150Hz
+    // Fast frequency sweep down from 450Hz to 120Hz
     osc.frequency.setValueAtTime(450, time);
     osc.frequency.exponentialRampToValueAtTime(120, time + 0.12);
     
@@ -266,18 +266,75 @@ class AudioEngine {
   // Stop propeller motor
   public stopMotor() {
     if (this.motorOsc) {
-      try {
-        this.motorOsc.stop();
-        this.motorOsc.disconnect();
-      } catch (e) {}
-      this.motorOsc = null;
+       try {
+         this.motorOsc.stop();
+         this.motorOsc.disconnect();
+       } catch (e) {}
+       this.motorOsc = null;
     }
     if (this.motorGain) {
-      try {
-        this.motorGain.disconnect();
-      } catch (e) {}
-      this.motorGain = null;
+       try {
+         this.motorGain.disconnect();
+       } catch (e) {}
+       this.motorGain = null;
     }
+  }
+
+  // Play a beautiful level completed fanfare
+  public playLevelUp() {
+    this.resume();
+    if (!this.soundEnabled || !this.ctx || !this.masterGain) return;
+
+    const time = this.ctx.currentTime;
+    
+    // Ascending arpeggio chime: G4, C5, E5, G5
+    const notes = [392.00, 523.25, 659.25, 783.99];
+    const durations = [0.1, 0.1, 0.1, 0.3];
+    
+    let currentOffset = 0;
+    notes.forEach((freq, idx) => {
+      const noteOsc = this.ctx!.createOscillator();
+      const noteGain = this.ctx!.createGain();
+      
+      noteOsc.type = 'triangle';
+      noteOsc.frequency.setValueAtTime(freq, time + currentOffset);
+      
+      noteGain.gain.setValueAtTime(0.2, time + currentOffset);
+      noteGain.gain.linearRampToValueAtTime(0.001, time + currentOffset + durations[idx] - 0.02);
+      
+      noteOsc.connect(noteGain);
+      noteGain.connect(this.masterGain!);
+      
+      noteOsc.start(time + currentOffset);
+      noteOsc.stop(time + currentOffset + durations[idx]);
+      
+      currentOffset += durations[idx] * 0.85; // fast overlap
+    });
+  }
+
+  // Play a looming siren for the Boss warning
+  public playBossWarning() {
+    this.resume();
+    if (!this.soundEnabled || !this.ctx || !this.masterGain) return;
+
+    const time = this.ctx.currentTime;
+    
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(130, time);
+    osc.frequency.linearRampToValueAtTime(180, time + 0.15);
+    osc.frequency.linearRampToValueAtTime(130, time + 0.3);
+    
+    gain.gain.setValueAtTime(0.18, time);
+    gain.gain.linearRampToValueAtTime(0.001, time + 0.35);
+    
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    
+    osc.start(time);
+    osc.stop(time + 0.35);
   }
 }
 
