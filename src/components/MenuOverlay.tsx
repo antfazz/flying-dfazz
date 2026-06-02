@@ -132,20 +132,22 @@ export default function MenuOverlay({
         {/* Highlight Banner / Top spiral design */}
         <div className="h-4 bg-amber-200 border-b-2 border-slate-800 flex items-center" />
 
-        <div className="pl-8 sm:pl-10 pr-4 sm:pr-6 py-2 sm:py-4 flex-1 flex flex-col overflow-y-auto w-full">
+        <div className={`pl-8 sm:pl-10 pr-4 sm:pr-6 flex-1 flex flex-col overflow-y-auto w-full ${activeTab === 'gameover' ? 'py-1 sm:py-2' : 'py-2 sm:py-4'}`}>
           
           {/* Menu Title / Logo Area */}
-          <div className="text-center mb-2 sm:mb-4 mt-0.5 sm:mt-1">
+          <div className={`text-center ${activeTab === 'gameover' ? 'mb-1 sm:mb-2 mt-0 sm:mt-0.5' : 'mb-2 sm:mb-4 mt-0.5 sm:mt-1'}`}>
             <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-slate-900 select-none font-mono flex items-center justify-center gap-1.5 sm:gap-2 leading-none">
-              <span className="text-sky-500 transform -rotate-2 inline-block text-base sm:text-2xl font-mono">The Flying</span>
-              <span className="text-rose-500 transform rotate-1 inline-block text-2xl sm:text-4xl font-black font-sans">D-FAZZ</span>
+              <span className={`text-sky-500 transform -rotate-2 inline-block font-mono ${activeTab === 'gameover' ? 'text-xs sm:text-base' : 'text-base sm:text-2xl'}`}>The Flying</span>
+              <span className={`text-rose-500 transform rotate-1 inline-block font-sans ${activeTab === 'gameover' ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-4xl'} font-black`}>D-FAZZ</span>
             </h1>
-            <p className="text-[9px] sm:text-xs text-slate-400 font-mono italic mt-0.5">"Flying through drawing clouds!"</p>
+            {activeTab !== 'gameover' && (
+              <p className="text-[9px] sm:text-xs text-slate-400 font-mono italic mt-0.5">"Flying through drawing clouds!"</p>
+            )}
           </div>
 
           {/* TAB NAVIGATION PANEL - Hidden during gameover state to maximize space */}
           {activeTab !== 'gameover' && (
-            <div className="flex border-b-2 border-slate-850 justify-between text-[11px] sm:text-xs font-bold font-mono mb-2 sm:mb-3 text-slate-500 select-none">
+            <div className="flex border-b-2 border-slate-855 justify-between text-[11px] sm:text-xs font-bold font-mono mb-2 sm:mb-3 text-slate-500 select-none">
               <button 
                 onClick={() => { setActiveTab(gameState === 'GAMEOVER' ? 'gameover' : 'main'); setHasSavedScore(false); }}
                 className={`pb-1 px-1 transition border-b-2 -mb-[2px] ${activeTab === 'main' || activeTab === 'gameover' ? 'text-slate-900 border-rose-500 font-bold' : 'border-transparent hover:text-slate-800'}`}
@@ -178,26 +180,26 @@ export default function MenuOverlay({
             <div className="flex-1 flex flex-col justify-between">
               <div>
                 {/* Compact Game Over Card */}
-                <div className="bg-red-50 border-2 border-rose-300 rounded-xl p-3 mb-2 text-center transform -rotate-0.5 shadow-xs">
-                  <h2 className="text-base sm:text-lg font-extrabold font-mono text-rose-600 flex items-center justify-center gap-1 select-none">
+                <div className="bg-red-50 border-2 border-rose-300 rounded-xl p-2 sm:p-3 mb-1.5 text-center transform -rotate-0.5 shadow-xs">
+                  <h2 className="text-sm sm:text-base font-extrabold font-mono text-rose-600 flex items-center justify-center gap-1 select-none">
                     <Heart className="w-4 h-4 animate-pulse fill-rose-500" /> CRASHED! <Heart className="w-4 h-4 animate-pulse fill-rose-500" />
                   </h2>
                   
-                  <div className="grid grid-cols-2 gap-2 my-1.5 text-slate-700">
-                    <div className="p-1 bg-white border border-slate-300/80 rounded-md shadow-xs">
-                      <div className="text-[9px] text-slate-400 uppercase font-mono">Distance Flown</div>
-                      <div className="font-black text-sm sm:text-base text-slate-800">{Math.round(distance)}m</div>
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-2 my-1 sm:my-1.5 text-slate-700">
+                    <div className="p-0.5 sm:p-1 bg-white border border-slate-300/80 rounded-md shadow-xs">
+                      <div className="text-[8px] sm:text-[9px] text-slate-400 uppercase font-mono">Distance Flown</div>
+                      <div className="font-black text-xs sm:text-base text-slate-800">{Math.round(distance)}m</div>
                     </div>
-                    <div className="p-1 bg-white border border-slate-300/80 rounded-md shadow-xs">
-                      <div className="text-[9px] text-slate-400 uppercase font-mono">Final Score</div>
-                      <div className="font-black text-sm sm:text-base text-rose-500">{score}</div>
+                    <div className="p-0.5 sm:p-1 bg-white border border-slate-300/80 rounded-md shadow-xs">
+                      <div className="text-[8px] sm:text-[9px] text-slate-400 uppercase font-mono">Final Score</div>
+                      <div className="font-black text-xs sm:text-base text-rose-500">{score}</div>
                     </div>
                   </div>
 
                   {isEligibleForHighScore() && !hasSavedScore ? (
-                    <form onSubmit={handleSaveScore} className="mt-1.5 bg-amber-100/70 border border-amber-300 rounded-lg p-1.5">
-                      <span className="text-[9px] font-mono text-amber-800 font-semibold block mb-0.5">🎉 Brand New High Score!</span>
-                      <div className="flex gap-1.5">
+                    <form onSubmit={handleSaveScore} className="mt-1 bg-amber-100/70 border border-amber-300 rounded-lg p-1 sm:p-1.5">
+                      <span className="text-[8px] sm:text-[9px] font-mono text-amber-800 font-semibold block mb-0.5">🎉 Brand New High Score!</span>
+                      <div className="flex gap-1">
                         <input 
                           type="text" 
                           placeholder="Your kid name..." 
@@ -205,11 +207,11 @@ export default function MenuOverlay({
                           onChange={(e) => setNewHighScoreName(e.target.value)}
                           maxLength={16}
                           required
-                          className="flex-1 bg-white border border-slate-400 px-2 py-0.5 text-xs rounded shadow-inner font-mono font-bold text-slate-800 focus:outline-none focus:border-sky-500 placeholder:text-slate-400"
+                          className="flex-1 bg-white border border-slate-400 px-1.5 py-0.5 text-[10px] sm:text-xs rounded shadow-inner font-mono font-bold text-slate-800 focus:outline-none focus:border-sky-500 placeholder:text-slate-400"
                         />
                         <button 
                           type="submit" 
-                          className="bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-900 border border-slate-700 px-2.5 py-0.5 text-[10px] font-extrabold font-mono rounded shadow transition"
+                          className="bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-900 border border-slate-700 px-2 py-0.5 text-[9px] sm:text-[10px] font-extrabold font-mono rounded shadow transition"
                         >
                           SAVE
                         </button>
@@ -217,7 +219,7 @@ export default function MenuOverlay({
                     </form>
                   ) : (
                     hasSavedScore && (
-                      <div className="text-[10px] font-semibold text-emerald-600 font-mono mt-0.5">
+                      <div className="text-[9px] sm:text-[10px] font-semibold text-emerald-600 font-mono mt-0.5">
                         ✓ Score written down in the notebook!
                       </div>
                     )
@@ -225,17 +227,17 @@ export default function MenuOverlay({
                 </div>
 
                 {/* Quick settings check */}
-                <div className="text-[10px] bg-slate-100 p-1.5 rounded-lg border border-slate-200 flex items-center justify-between font-mono">
+                <div className="text-[9px] sm:text-[10px] bg-slate-100 p-1 sm:p-1.5 rounded-lg border border-slate-200 flex items-center justify-between font-mono mt-1">
                   <span>Difficulty: <strong className="text-sky-600 capitalize">{settings.difficulty}</strong></span>
                   <span>Sound: <strong className={settings.soundEnabled ? "text-emerald-600" : "text-rose-500"}>{settings.soundEnabled ? "ON" : "OFF"}</strong></span>
                 </div>
               </div>
 
               {/* ACTION BUTTON START / RESTART */}
-              <div className="mt-3 space-y-1.5">
+              <div className="mt-2 sm:mt-3 space-y-1 sm:space-y-1.5">
                 <button
                   onClick={onResetGame}
-                  className="w-full bg-[#fed330] hover:bg-[#f7b731] active:translate-y-0.5 select-none border-2 border-slate-800 rounded-xl py-2 px-4 font-bold text-sm sm:text-base text-slate-900 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1.5 transition"
+                  className="w-full bg-[#fed330] hover:bg-[#f7b731] active:translate-y-0.5 select-none border-2 border-slate-800 rounded-xl py-1.5 sm:py-2 px-4 font-bold text-xs sm:text-base text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1.5 transition"
                 >
                   <RotateCcw className="w-4 h-4 text-slate-900" /> RESTART GAME
                 </button>
