@@ -750,19 +750,63 @@ export function drawStarCollectible(
   const scale = 1.0 + Math.sin(frameCheck * 0.1) * 0.08;
   ctx.scale(scale, scale);
 
+  if (star.type === 'LIFE_HEAL') {
+    const mainColor = '#e74c3c'; // Red crayon
+    // Let's draw a beautiful child-like sketched heart with interactive flapping blue wings!
+    ctx.fillStyle = 'rgba(255, 230, 230, 0.95)';
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 2.5;
+
+    ctx.beginPath();
+    const hW = 14;
+    const hH = 14;
+    // Hand-drawn style heart centered at (0, 0)
+    ctx.moveTo(0, hH * 0.45);
+    ctx.bezierCurveTo(-hW * 0.8, -hH * 0.4, -hW * 0.8, -hH * 1.1, 0, -hH * 0.45);
+    ctx.bezierCurveTo(hW * 0.8, -hH * 1.1, hW * 0.8, -hH * 0.4, 0, hH * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw cute sketchy flapping wings on the sides!
+    ctx.strokeStyle = '#3498db'; // Soft blue wings
+    ctx.lineWidth = 1.8;
+    const wingFlap = Math.sin(frameCheck * 0.18) * 7;
+    
+    // Left Wing
+    ctx.beginPath();
+    ctx.moveTo(-6, -1);
+    ctx.quadraticCurveTo(-18, -12 + wingFlap, -22, -3);
+    ctx.quadraticCurveTo(-15, 5, -4, 2);
+    ctx.stroke();
+
+    // Right Wing
+    ctx.beginPath();
+    ctx.moveTo(6, -1);
+    ctx.quadraticCurveTo(18, -12 + wingFlap, 22, -3);
+    ctx.quadraticCurveTo(15, 5, 4, 2);
+    ctx.stroke();
+
+    // Inner heart specular pencil highlight loop
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.82)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(-3, -3, 2, Math.PI, 1.5 * Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
+    return;
+  }
+
   // Coloring:
   // Yellow pencil sketch for standard score stars
   // Neon green for green crayon extra bullets
-  // Soft pink/red for hearts life heal
   let mainColor = '#f1c40f'; // Golden standard star
   let helperText = '';
   
   if (star.type === 'BULLET_RECHARGE') {
     mainColor = '#2ecc71'; // Green crayon
     helperText = '✎';
-  } else if (star.type === 'LIFE_HEAL') {
-    mainColor = '#e74c3c'; // Red crayon
-    helperText = '♥';
   }
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; // opaque backing
@@ -911,6 +955,7 @@ export function drawParticle(
 
   ctx.restore();
 }
+
 // Draw the massive, terrifying, scribbled Supercloud Boss
 export function drawSupercloud(
   ctx: CanvasRenderingContext2D,
