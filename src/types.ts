@@ -73,6 +73,7 @@ export interface Bullet {
   vy: number;
   radius: number;
   isEnemy: boolean;
+  isHail?: boolean;
 }
 
 export interface Particle {
@@ -97,4 +98,17 @@ export interface StarCollectible {
   collected: boolean;
   angle: number;
   type: 'SCORE_STAR' | 'BULLET_RECHARGE' | 'LIFE_HEAL' | 'AMMO_PARACHUTE';
+}
+
+export interface SupercloudBoss {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  health: number;
+  maxHealth: number;
+  vy: number;
+  shootCooldown: number;
+  state: 'ENTERING' | 'FIGHTING' | 'DEFEATED';
+  flashFrames: number;
 }
