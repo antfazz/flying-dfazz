@@ -63,6 +63,7 @@ export default function GameCanvas({
     starCollectibles: StarCollectible[];
     frameCount: number;
     score: number;
+    lastScoreMilestone: number;
     distance: number;
     screenShake: number;
     isPointerDown: boolean;
@@ -79,6 +80,7 @@ export default function GameCanvas({
     starCollectibles: [],
     frameCount: 0,
     score: 0,
+    lastScoreMilestone: 0,
     distance: 0,
     screenShake: 0,
     isPointerDown: false,
@@ -141,6 +143,7 @@ export default function GameCanvas({
     stateRef.current.particles = [];
     stateRef.current.starCollectibles = [];
     stateRef.current.score = 0;
+    stateRef.current.lastScoreMilestone = 0;
     stateRef.current.distance = 0;
     stateRef.current.screenShake = 0;
     stateRef.current.frameCount = 0;
@@ -240,7 +243,7 @@ export default function GameCanvas({
     };
   }, [gameState, isGamePaused, bullets, settings.shootingEnabled]);
 
-  // Handle touch interactions safely across tablet aspect ratios (relative pointer movement!)
+  // Handle touch interactions safely across tablet aspect ratios (smooth relative track-pad movement!)
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (gameState !== 'PLAYING' || isGamePaused) return;
     stateRef.current.isPointerDown = true;
@@ -253,20 +256,6 @@ export default function GameCanvas({
     } catch (err) {
       // safe fallback if not supported in iframe sandbox
     }
-
-    // Direct tap initial snap:
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = GAME_WIDTH / rect.width;
-      const scaleY = GAME_HEIGHT / rect.height;
-      const targetY = (e.clientY - rect.top) * scaleY;
-      const targetX = (e.clientX - rect.left) * scaleX;
-      
-      const { plane } = stateRef.current;
-      plane.targetY = Math.max(25, Math.min(GAME_HEIGHT - 45, targetY));
-      // Give initial target horizontal position clamped to halfway
-      plane.x = Math.max(30, Math.min(GAME_WIDTH / 2, targetX - plane.width / 2));
-    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -278,8 +267,9 @@ export default function GameCanvas({
       const scaleX = GAME_WIDTH / rect.width;
       const scaleY = GAME_HEIGHT / rect.height;
 
-      const dx = (e.clientX - lastPointerX) * scaleX;
-      const dy = (e.clientY - lastPointerY) * scaleY;
+      // Higher relative sensitivity (1.35x) gives effortless arcade control
+      const dx = (e.clientX - lastPointerX) * scaleX * 1.35;
+      const dy = (e.clientY - lastPointerY) * scaleY * 1.35;
 
       // Update plane position directly based on dragging deltas!
       plane.x = Math.max(30, Math.min(GAME_WIDTH / 2, plane.x + dx));
@@ -412,7 +402,34 @@ export default function GameCanvas({
 
       // Squeeze mini tick marks into standard score state (only if no boss is active)
       const computedScore = stateRef.current.score + (!isBossActive && (newFrameCount % 150 === 0) ? 10 : 0);
+      if (computedScore !== stateRef.current.score) {
+        stateRef.current.score = computedScore;
+        setScore(computedScore);
+      }
       updateScoreAndDistance(computedScore, stateRef.current.distance);
+
+      // Check for score milestone extra life trigger (Option B)
+      const currentScore = stateRef.current.score;
+      const lastMilestone = stateRef.current.lastScoreMilestone;
+      const milestoneInterval = 1500;
+      if (Math.floor(currentScore / milestoneInterval) > Math.floor(lastMilestone / milestoneInterval)) {
+        stateRef.current.lastScoreMilestone = currentScore;
+        const maxThreshold = 5;
+        if (plane.lives < maxThreshold) {
+          plane.lives += 1;
+          if (plane.lives > plane.maxLives) {
+            plane.maxLives = plane.lives;
+          }
+          setLives(plane.lives);
+          audio.playLevelUp(); // play deluxe milestone chime!
+          spawnParticles(plane.x + plane.width / 2, plane.y + plane.height / 2, '#2ecc71', 12, 'EXTRA LIFE! ♥');
+        } else {
+          // already maxed, give visual + ammo bonus + extra score points
+          plane.bullets += 10;
+          setBullets(plane.bullets);
+          spawnParticles(plane.x + plane.width / 2, plane.y + plane.height / 2, '#f1c40f', 12, 'AMMO BONUS! ✎');
+        }
+      }
 
       // Decrement invulnerability frame timer safely
       if (plane.invulnFrames > 0) {
@@ -954,10 +971,24 @@ export default function GameCanvas({
             setBullets(plane.bullets);
             spawnParticles(star.x + star.width/2, star.y + star.height/2, '#2ecc71', 10, `+${addedBullets} Ammo ✎`);
           } else if (star.type === 'LIFE_HEAL') {
-            const addedLife = Math.min(plane.maxLives, plane.lives + 1);
-            plane.lives = addedLife;
-            setLives(addedLife);
-            spawnParticles(star.x + 8, star.y + 8, '#e74c3c', 8, '+1 Heart');
+            const maxThreshold = 5;
+            if (plane.lives < maxThreshold) {
+              const addedLife = plane.lives + 1;
+              plane.lives = addedLife;
+              if (plane.lives > plane.maxLives) {
+                plane.maxLives = plane.lives;
+              }
+              setLives(addedLife);
+              spawnParticles(star.x + 8, star.y + 8, '#e74c3c', 12, 'EXTRA LIFE! ♥');
+            } else {
+              // Give nice overflow bonus points
+              setScore(current => {
+                const s = current + 500;
+                stateRef.current.score = s;
+                return s;
+              });
+              spawnParticles(star.x + 8, star.y + 8, '#f1c40f', 16, 'MAX LIVES BONUS: +500 Score!');
+            }
           } else {
             // Standard gold score star
             setScore(current => {
@@ -1086,46 +1117,6 @@ export default function GameCanvas({
     ctx.restore();
   };
 
-  // Relative steer pad touch handlers for optimal hand placement
-  const handlePadPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (gameState !== 'PLAYING' || isGamePaused) return;
-    stateRef.current.isPointerDown = true;
-    stateRef.current.lastPointerX = e.clientX;
-    stateRef.current.lastPointerY = e.clientY;
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (err) {}
-  };
-
-  const handlePadPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const { isPointerDown, lastPointerX, lastPointerY, plane } = stateRef.current;
-    if (gameState !== 'PLAYING' || isGamePaused || !isPointerDown) return;
-
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = GAME_WIDTH / rect.width;
-      const scaleY = GAME_HEIGHT / rect.height;
-
-      // Make relative drag slightly more sensitive/responsive inside the dedicated panel
-      const dx = (e.clientX - lastPointerX) * scaleX * 1.35;
-      const dy = (e.clientY - lastPointerY) * scaleY * 1.35;
-
-      plane.x = Math.max(30, Math.min(GAME_WIDTH / 2, plane.x + dx));
-      plane.y = Math.max(10, Math.min(GAME_HEIGHT - 45, plane.y + dy));
-      plane.targetY = plane.y + plane.height / 2;
-    }
-
-    stateRef.current.lastPointerX = e.clientX;
-    stateRef.current.lastPointerY = e.clientY;
-  };
-
-  const handlePadPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    stateRef.current.isPointerDown = false;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch (err) {}
-  };
-
   // Immediate layout render check triggering initially
   useEffect(() => {
     renderCanvas();
@@ -1141,7 +1132,7 @@ export default function GameCanvas({
         {/* Lives / Heart fuel display */}
         <div id="hud-lives" className="flex items-center gap-1">
           <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold mr-1 sm:mr-1.5 flex items-center gap-0.5"><Target className="w-3 h-3 text-emerald-500" /> Crew</span>
-          {[...Array(settings.difficulty === 'easy' ? 4 : settings.difficulty === 'hard' ? 2 : 3)].map((_, i) => (
+          {[...Array(Math.max(settings.difficulty === 'easy' ? 4 : settings.difficulty === 'hard' ? 2 : 3, lives))].map((_, i) => (
             <Heart 
               key={i} 
               className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${
@@ -1229,28 +1220,9 @@ export default function GameCanvas({
         </div>
       )}
 
-      {/* HORIZONTAL WRAP CONSOLE WITH TACTILE SIDE CONTROLLERS */}
-      <div className="w-full flex flex-row items-stretch justify-center gap-1.5 sm:gap-3 select-none">
+      {/* HORIZONTAL WRAP CONSOLE WITH CENTRALIZED CANVAS */}
+      <div className="w-full flex flex-row items-stretch justify-center select-none">
         
-        {/* LEFT STEERPAD AREA (ONLY VISIBLE IN HORIZONTAL MODE/LANDSCAPE) */}
-        {gameState === 'PLAYING' && !isGamePaused && (
-          <div 
-            onPointerDown={handlePadPointerDown}
-            onPointerMove={handlePadPointerMove}
-            onPointerUp={handlePadPointerUp}
-            onPointerLeave={handlePadPointerUp}
-            className="hidden landscape:flex flex-col items-center justify-between w-24 sm:w-32 md:w-36 bg-[#faf8f2] border-4 border-slate-800 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] p-2 font-mono hover:bg-[#fffdf7] cursor-ns-resize touch-none select-none transition-colors"
-          >
-            <span className="text-[7px] sm:text-[9px] text-slate-400 font-extrabold uppercase tracking-widest text-center leading-none">STEER</span>
-            <div className="flex flex-col items-center gap-1 sm:gap-2 pointer-events-none">
-              <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[9px] sm:text-xs font-bold animate-bounce mb-0.5">↑</div>
-              <div className="text-[7px] sm:text-[9px] text-slate-500 font-extrabold text-center leading-none uppercase tracking-tight">DRAG<br/>HERE</div>
-              <div className="w-5 h-5 sm:w-8 sm:h-8 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[9px] sm:text-xs font-bold mt-0.5">↓</div>
-            </div>
-            <span className="text-[7px] sm:text-[9px] text-slate-400 font-bold uppercase leading-none">PAD</span>
-          </div>
-        )}
-
         {/* CANVAS DRAWING ELEMENT FRAME */}
         <div className="relative overflow-hidden border-4 border-slate-800 rounded-2xl bg-[#faf8f2] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] shrink select-none flex items-center justify-center max-w-full max-h-[calc(100vh-80px)] max-h-[calc(100dvh-80px)] sm:max-h-[calc(100dvh-100px)] w-fit aspect-[850/480] shadow-slate-800">
           <canvas
@@ -1267,7 +1239,7 @@ export default function GameCanvas({
 
           {/* BOSS HEALTH BAR OVERLAY */}
           {gameState === 'PLAYING' && bossHealth !== null && bossMaxHealth !== null && (
-            <div className="absolute top-3 left-1/3 text-center sm:left-1/2 -translate-x-[40%] sm:-translate-x-1/2 w-48 sm:w-64 bg-[#faf8f2] border-2 border-slate-800 rounded-xl p-1 sm:p-1.5 flex flex-col justify-center items-center shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] sm:shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] z-10 font-mono select-none">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-48 sm:w-64 bg-[#faf8f2] border-2 border-slate-800 rounded-xl p-1 sm:p-1.5 flex flex-col justify-center items-center shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] sm:shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] z-10 font-mono select-none">
               <span className="text-[6px] sm:text-[9px] font-black uppercase text-rose-600 mb-0.5 sm:mb-1 leading-none tracking-wide text-center">
                 ☁ SUPERCLOUD ENCOUNTER ☁
               </span>
@@ -1290,42 +1262,23 @@ export default function GameCanvas({
             </div>
           )}
 
-          {/* PORTRAIT BACKUP BLAST BUTTON (Only visible in vertical portrait state) */}
+          {/* FLOATING ACTION BLAST BUTTON OVERLAY (Available across all devices) */}
           {gameState === 'PLAYING' && !isGamePaused && settings.shootingEnabled && (
-            <div className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-10 select-none landscape:hidden">
+            <div className="absolute right-3 bottom-3 sm:right-6 sm:bottom-6 z-10 select-none">
               <button
                 onPointerDown={(e) => {
                   e.preventDefault();
+                  e.stopPropagation(); // prevent drag trigger on canvas
                   firePlaneBullet();
                 }}
-                className="w-12 h-12 sm:w-16 sm:h-16 bg-rose-500 hover:bg-rose-600 active:scale-90 text-white rounded-full border-2 sm:border-4 border-slate-800 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] sm:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-center items-center cursor-pointer outline-none select-none"
+                className="w-14 h-14 sm:w-18 sm:h-18 bg-rose-500 hover:bg-rose-600 active:scale-90 hover:scale-105 text-white rounded-full border-3 sm:border-4 border-slate-800 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] sm:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-center items-center cursor-pointer outline-none select-none transition-all active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
               >
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-white text-rose-100 animate-pulse pointer-events-none" />
-                <span className="text-[8px] sm:text-[10px] font-black font-mono tracking-widest pointer-events-none leading-none">BLAST</span>
+                <Zap className="w-5 h-5 sm:w-6 sm:h-6 fill-white text-rose-100 animate-pulse pointer-events-none" />
+                <span className="text-[9px] sm:text-[11px] font-black font-mono tracking-widest pointer-events-none leading-none mt-1">BLAST</span>
               </button>
             </div>
           )}
         </div>
-
-        {/* RIGHT WEAPONS BLAST PAD AREA (ONLY VISIBLE IN HORIZONTAL MODE/LANDSCAPE) */}
-        {gameState === 'PLAYING' && !isGamePaused && settings.shootingEnabled && (
-          <div className="hidden landscape:flex flex-col items-center justify-between w-12 sm:w-16 md:w-18 bg-[#faf8f2] border-4 border-slate-800 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] p-1.5 font-mono select-none">
-            <span className="text-[6px] sm:text-[8px] text-slate-400 font-extrabold uppercase tracking-widest text-center leading-none">WEAPON</span>
-            
-            <button
-              onPointerDown={(e) => {
-                e.preventDefault();
-                firePlaneBullet();
-              }}
-              className="w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-rose-500 hover:bg-rose-600 active:scale-95 hover:scale-105 rounded-full border-2 border-slate-800 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] sm:shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-center items-center cursor-pointer outline-none select-none transition-all active:translate-y-0.5 active:shadow-[0.5px_0.5px_0px_0px_rgba(15,23,42,1)]"
-            >
-              <Zap className="w-3 h-3 sm:w-4.5 sm:h-4.5 fill-white text-rose-100 pointer-events-none" />
-              <span className="text-[5px] sm:text-[7px] md:text-[8px] font-black tracking-widest leading-none mt-0.5 sm:mt-1 pointer-events-none">BLAST</span>
-            </button>
-
-            <span className="text-[6px] sm:text-[8px] text-slate-400 font-bold uppercase leading-none">FIRE</span>
-          </div>
-        )}
 
       </div>
     </div>
