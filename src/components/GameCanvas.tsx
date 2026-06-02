@@ -28,7 +28,7 @@ interface GameCanvasProps {
 }
 
 // Fixed internal arena size for physics stability; CSS scales the canvas beautifully
-const GAME_WIDTH = 850;
+const GAME_WIDTH = 1100;
 const GAME_HEIGHT = 480;
 
 export default function GameCanvas({
@@ -1224,7 +1224,7 @@ export default function GameCanvas({
       <div className="w-full flex flex-row items-stretch justify-center select-none">
         
         {/* CANVAS DRAWING ELEMENT FRAME */}
-        <div className="relative overflow-hidden border-4 border-slate-800 rounded-2xl bg-[#faf8f2] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] shrink select-none flex items-center justify-center max-w-full max-h-[calc(100vh-80px)] max-h-[calc(100dvh-80px)] sm:max-h-[calc(100dvh-100px)] w-fit aspect-[850/480] shadow-slate-800">
+        <div className="relative overflow-hidden border-4 border-slate-800 rounded-2xl bg-[#faf8f2] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] shrink select-none flex items-center justify-center max-w-full max-h-[calc(100vh-80px)] max-h-[calc(100dvh-80px)] sm:max-h-[calc(100dvh-100px)] w-fit aspect-[1100/480] shadow-slate-800" style={{ aspectRatio: '1100/480' }}>
           <canvas
             ref={canvasRef}
             width={GAME_WIDTH}
@@ -1233,8 +1233,8 @@ export default function GameCanvas({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
-            className="max-w-full max-h-[calc(100vh-82px)] max-h-[calc(100dvh-82px)] sm:max-h-[calc(100dvh-108px)] w-auto h-auto aspect-[850/480] block select-none bg-inherit cursor-pointer touch-none"
-            style={{ imageRendering: 'pixelated' }}
+            className="max-w-full max-h-[calc(100vh-82px)] max-h-[calc(100dvh-82px)] sm:max-h-[calc(100dvh-108px)] w-auto h-auto aspect-[1100/480] block select-none bg-inherit cursor-pointer touch-none"
+            style={{ imageRendering: 'pixelated', aspectRatio: '1100/480' }}
           />
 
           {/* BOSS HEALTH BAR OVERLAY */}
