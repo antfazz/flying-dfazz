@@ -27,9 +27,9 @@ interface GameCanvasProps {
   triggerResetRef: React.MutableRefObject<(() => void) | null>;
 }
 
-// Fixed core sizing variables for standard coordinate rendering
-const DEFAULT_GAME_WIDTH = 1100;
-const DEFAULT_GAME_HEIGHT = 480;
+// Fixed widescreen coordinate system with absolute dimensions
+const GAME_WIDTH = 1100;
+const GAME_HEIGHT = 480;
 
 export default function GameCanvas({
   gameState,
@@ -40,28 +40,6 @@ export default function GameCanvas({
   triggerResetRef,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // Dynamic dimensions state to cover 100% of the widescreen console canvas card
-  const [dimensions, setDimensions] = useState({ width: DEFAULT_GAME_WIDTH, height: DEFAULT_GAME_HEIGHT });
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        let { width, height } = entry.contentRect;
-        if (width <= 0) width = DEFAULT_GAME_WIDTH;
-        if (height <= 0) height = DEFAULT_GAME_HEIGHT;
-        setDimensions({ width, height });
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const GAME_HEIGHT = DEFAULT_GAME_HEIGHT;
-  // Calculate dynamic game physics width so that the landscape aspect is retained perfectly with no distortion!
-  const GAME_WIDTH = Math.max(900, Math.round(GAME_HEIGHT * (dimensions.width / dimensions.height)));
 
   // Core Game Loop State
   const [lives, setLives] = useState(3);
@@ -91,8 +69,6 @@ export default function GameCanvas({
     keys: { [key: string]: boolean };
     level: number;
     boss: SupercloudBoss | null;
-    gameWidth: number;
-    gameHeight: number;
   }>({
     gameState: 'MENU',
     plane: createDefaultPlane(),
@@ -110,15 +86,7 @@ export default function GameCanvas({
     keys: {},
     level: 1,
     boss: null,
-    gameWidth: DEFAULT_GAME_WIDTH,
-    gameHeight: DEFAULT_GAME_HEIGHT,
   });
-
-  // Always keep stateRef in sync with dynamic boundary sizes!
-  useEffect(() => {
-    stateRef.current.gameWidth = GAME_WIDTH;
-    stateRef.current.gameHeight = GAME_HEIGHT;
-  }, [GAME_WIDTH]);
 
   // Export local state properties to variables occasionally for HUD binding
   useEffect(() => {
@@ -188,15 +156,13 @@ export default function GameCanvas({
   }
 
   function createInitialFriendlyClouds(): FriendlyCloud[] {
-    const currentW = stateRef.current?.gameWidth ?? DEFAULT_GAME_WIDTH;
-    const currentH = stateRef.current?.gameHeight ?? DEFAULT_GAME_HEIGHT;
     const initial: FriendlyCloud[] = [];
     // Distribute 4 starter clouds across the landscape
     for (let i = 0; i < 4; i++) {
       initial.push({
         id: `cloud_init_${i}`,
-        x: (currentW / 4) * i + Math.random() * 80,
-        y: 40 + Math.random() * (currentH - 120),
+        x: (GAME_WIDTH / 4) * i + Math.random() * 80,
+        y: 40 + Math.random() * (GAME_HEIGHT - 120),
         width: 100,
         height: 60,
         vx: -(0.5 + Math.random() * 0.8),
@@ -292,21 +258,21 @@ export default function GameCanvas({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const { isPointerDown, lastPointerX, lastPointerY, plane, gameWidth, gameHeight } = stateRef.current;
+    const { isPointerDown, lastPointerX, lastPointerY, plane } = stateRef.current;
     if (gameState !== 'PLAYING' || isGamePaused || !isPointerDown) return;
 
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = gameWidth / rect.width;
-      const scaleY = gameHeight / rect.height;
+      const scaleX = GAME_WIDTH / rect.width;
+      const scaleY = GAME_HEIGHT / rect.height;
 
       // Higher relative sensitivity (1.35x) gives effortless arcade control
       const dx = (e.clientX - lastPointerX) * scaleX * 1.35;
       const dy = (e.clientY - lastPointerY) * scaleY * 1.35;
 
       // Update plane position directly based on dragging deltas!
-      plane.x = Math.max(30, Math.min(gameWidth / 2, plane.x + dx));
-      plane.y = Math.max(10, Math.min(gameHeight - 45, plane.y + dy));
+      plane.x = Math.max(30, Math.min(GAME_WIDTH / 2, plane.x + dx));
+      plane.y = Math.max(10, Math.min(GAME_HEIGHT - 45, plane.y + dy));
       plane.targetY = plane.y + plane.height / 2;
     }
 
@@ -370,8 +336,6 @@ export default function GameCanvas({
     let lastTime = performance.now();
     
     const update = () => {
-      const GAME_WIDTH = stateRef.current.gameWidth;
-      const GAME_HEIGHT = stateRef.current.gameHeight;
       const { 
         plane, 
         obstacles, 
@@ -1081,9 +1045,6 @@ export default function GameCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const GAME_WIDTH = stateRef.current.gameWidth;
-    const GAME_HEIGHT = stateRef.current.gameHeight;
-
     const { 
       plane, 
       obstacles, 
@@ -1162,7 +1123,6 @@ export default function GameCanvas({
 
   return (
     <div 
-      ref={containerRef}
       className="relative w-full max-w-none mx-auto flex flex-col items-center justify-center p-0.5 landscape:p-0 select-none"
     >
       {/* MOBILE GAME HUD DISPLAY BAR */}
@@ -1262,7 +1222,7 @@ export default function GameCanvas({
       <div className="w-full flex flex-row items-stretch justify-center select-none">
         
         {/* CANVAS DRAWING ELEMENT FRAME */}
-        <div className="relative overflow-hidden border-4 border-slate-800 rounded-2xl bg-[#faf8f2] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] shrink select-none flex items-center justify-center w-full h-[calc(100vh-140px)] h-[calc(100dvh-140px)] sm:h-[calc(100dvh-160px)] min-h-[300px] max-w-full shadow-slate-800">
+        <div className="relative overflow-hidden border-4 border-slate-800 rounded-2xl bg-[#faf8f2] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] shrink select-none flex items-center justify-center w-full aspect-[1100/480] max-h-[calc(100vh-110px)] max-h-[calc(100dvh-110px)] sm:max-h-[calc(100dvh-140px)] shadow-slate-800" style={{ aspectRatio: '1100/480' }}>
           <canvas
             ref={canvasRef}
             width={GAME_WIDTH}
@@ -1271,8 +1231,8 @@ export default function GameCanvas({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
-            className="w-full h-full block select-none bg-inherit cursor-pointer touch-none"
-            style={{ imageRendering: 'pixelated' }}
+            className="max-w-full max-h-[calc(100vh-112px)] max-h-[calc(100dvh-112px)] sm:max-h-[calc(100dvh-142px)] w-auto h-auto aspect-[1100/480] block select-none bg-inherit cursor-pointer touch-none"
+            style={{ imageRendering: 'pixelated', aspectRatio: '1100/480' }}
           />
 
           {/* BOSS HEALTH BAR OVERLAY */}
