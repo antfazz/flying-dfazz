@@ -4,8 +4,8 @@
  */
 
 import React, { useRef, useEffect, useState } from 'react';
-import { GameState, GameSettings, PlaneEntity, Obstacle, FriendlyCloud, Bullet, Particle, StarCollectible } from '../types';
-import { drawNotebookBackground, drawDoodlePlane, drawFriendlyCloud, drawBlackCloud, drawEnemyPlane, drawStarCollectible, drawBullet, drawParticle } from './DoodleRenderer';
+import { GameState, GameSettings, PlaneEntity, Obstacle, FriendlyCloud, Bullet, Particle, StarCollectible, SupercloudBoss } from '../types';
+import { drawNotebookBackground, drawDoodlePlane, drawFriendlyCloud, drawBlackCloud, drawEnemyPlane, drawStarCollectible, drawBullet, drawParticle, drawSupercloud } from './DoodleRenderer';
 import { audio } from '../utils/audio';
 import { 
   Heart, 
@@ -48,6 +48,9 @@ export default function GameCanvas({
   const [distance, setDistance] = useState(0);
   const [bullets, setBullets] = useState(15);
   const [isGamePaused, setIsGamePaused] = useState(false);
+  const [level, setLevel] = useState(1);
+  const [bossHealth, setBossHealth] = useState<number | null>(null);
+  const [bossMaxHealth, setBossMaxHealth] = useState<number | null>(null);
 
   // Keep references to mute stale closure issues in the render loop animations
   const stateRef = useRef<{
@@ -64,6 +67,8 @@ export default function GameCanvas({
     screenShake: number;
     isPointerDown: boolean;
     keys: { [key: string]: boolean };
+    level: number;
+    boss: SupercloudBoss | null;
   }>({
     gameState: 'MENU',
     plane: createDefaultPlane(),
@@ -78,6 +83,8 @@ export default function GameCanvas({
     screenShake: 0,
     isPointerDown: false,
     keys: {},
+    level: 1,
+    boss: null,
   });
 
   // Export local state properties to variables occasionally for HUD binding
@@ -123,6 +130,9 @@ export default function GameCanvas({
     setDistance(0);
     setBullets(defaultPlane.bullets);
     setIsGamePaused(false);
+    setLevel(1);
+    setBossHealth(null);
+    setBossMaxHealth(null);
 
     stateRef.current.plane = defaultPlane;
     stateRef.current.obstacles = [];
@@ -134,6 +144,8 @@ export default function GameCanvas({
     stateRef.current.distance = 0;
     stateRef.current.screenShake = 0;
     stateRef.current.frameCount = 0;
+    stateRef.current.level = 1;
+    stateRef.current.boss = null;
 
     audio.stopMotor();
     if (gameState === 'PLAYING') {
@@ -359,16 +371,47 @@ export default function GameCanvas({
       const newFrameCount = frameCount + 1;
       stateRef.current.frameCount = newFrameCount;
 
-      // Match speed coefficients depending on difficulty levels chosen
-      const speedMultiplier = settings.difficulty === 'easy' ? 0.75 : settings.difficulty === 'hard' ? 1.35 : 1.0;
+      // Match speed coefficients depending on difficulty levels and completed level rounds
+      const levelSpeedBonus = (stateRef.current.level - 1) * 0.12; // +12% speed per level
+      const speedMultiplier = (settings.difficulty === 'easy' ? 0.75 : settings.difficulty === 'hard' ? 1.35 : 1.0) + levelSpeedBonus;
 
       // 1. UPDATE MILEAGE & SCORES (Frame rate compensated!)
-      stateRef.current.distance += 0.08 * speedMultiplier * frameComp;
-      const roundedDist = Math.round(stateRef.current.distance);
-      setDistance(roundedDist);
+      const isBossActive = stateRef.current.boss !== null;
+      if (!isBossActive) {
+        stateRef.current.distance += 0.08 * speedMultiplier * frameComp;
+        const roundedDist = Math.round(stateRef.current.distance);
+        setDistance(roundedDist);
 
-      // Squeeze mini tick marks into standard score state
-      const computedScore = stateRef.current.score + (newFrameCount % 150 === 0 ? 10 : 0);
+        // Spawn Supercloud boss check every 400 distance units
+        const BOSS_INTERVAL = 400;
+        if (roundedDist > 0 && roundedDist >= stateRef.current.level * BOSS_INTERVAL) {
+          audio.playBossWarning();
+
+          const bossMaxHp = 12 + stateRef.current.level * 4; // 16 health at Round 1, scaling up
+          stateRef.current.boss = {
+            x: GAME_WIDTH + 150,
+            y: GAME_HEIGHT / 2 - 45,
+            width: 140,
+            height: 90,
+            health: bossMaxHp,
+            maxHealth: bossMaxHp,
+            vy: 0,
+            shootCooldown: 60,
+            state: 'ENTERING',
+            flashFrames: 0,
+          };
+          setBossHealth(bossMaxHp);
+          setBossMaxHealth(bossMaxHp);
+          spawnParticles(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, '#f1c40f', 1, "SUPERCLOUD APPROACHING!");
+        }
+      } else {
+        const currentBoss = stateRef.current.boss!;
+        setBossHealth(currentBoss.health);
+        setBossMaxHealth(currentBoss.maxHealth);
+      }
+
+      // Squeeze mini tick marks into standard score state (only if no boss is active)
+      const computedScore = stateRef.current.score + (!isBossActive && (newFrameCount % 150 === 0) ? 10 : 0);
       updateScoreAndDistance(computedScore, stateRef.current.distance);
 
       // Decrement invulnerability frame timer safely
@@ -430,87 +473,92 @@ export default function GameCanvas({
         });
       }
 
-      // B. Obstacles: Black clouds & fighter red paper gliders spawn intervals
-      const obstacleSpawnChance = settings.difficulty === 'easy' ? 0.009 : settings.difficulty === 'hard' ? 0.025 : 0.016;
-      if (newFrameCount % 60 === 0 && Math.random() < obstacleSpawnChance * 60) {
-        // Randomly split between black pencil cloud and red crayon paper glider plane
-        const isFighter = Math.random() < (settings.difficulty === 'hard' ? 0.6 : settings.difficulty === 'easy' ? 0.15 : 0.35);
-        
-        if (isFighter) {
-          // Spawn enemy red plane
-          const size = 50;
-          obstacles.push({
-            id: `enemy_plane_${Date.now()}`,
-            type: 'ENEMY_PLANE',
-            x: GAME_WIDTH + 60,
-            y: size + Math.random() * (GAME_HEIGHT - size * 2),
-            width: size + 6,
-            height: size - 10,
-            vx: -(2.8 + Math.random() * 1.8) * speedMultiplier,
-            vy: Math.sin(Math.random() * 10) * 0.65, // small wavy path
-            health: settings.difficulty === 'hard' ? 2 : 1,
-            maxHealth: settings.difficulty === 'hard' ? 2 : 1,
-            jitterOffset: Math.random() * 200,
-            rotation: 0,
-            rotationSpeed: 0,
-            shootCooldown: 80 + Math.random() * 100,
-          });
-        } else {
-          // Spawn big charcoal storm cloud
-          const width = 60 + Math.random() * 45;
-          const height = 45 + Math.random() * 30;
-          obstacles.push({
-            id: `black_cloud_${Date.now()}`,
-            type: 'BLACK_CLOUD',
-            x: GAME_WIDTH + 100,
-            y: height + Math.random() * (GAME_HEIGHT - height * 2.2),
-            width,
-            height,
-            vx: -(1.8 + Math.random() * 1.5) * speedMultiplier,
-            vy: 0,
-            health: settings.difficulty === 'easy' ? 1 : 2, // harder clouds require 2 scribbles
-            maxHealth: settings.difficulty === 'easy' ? 1 : 2,
-            jitterOffset: Math.random() * 200,
-            rotation: Math.random() * Math.PI,
-            rotationSpeed: (Math.random() - 0.5) * 0.015,
-          });
+      // B. Obstacles: Black clouds & fighter red paper gliders spawn intervals (Deactivated during Boss phase!)
+      if (!isBossActive) {
+        const levelSpawnMultiplier = 1.0 + (stateRef.current.level - 1) * 0.15;
+        const obstacleSpawnChance = (settings.difficulty === 'easy' ? 0.009 : settings.difficulty === 'hard' ? 0.025 : 0.016) * levelSpawnMultiplier;
+        if (newFrameCount % 60 === 0 && Math.random() < obstacleSpawnChance * 60) {
+          // Randomly split between black pencil cloud and red crayon paper glider plane
+          const isFighter = Math.random() < (settings.difficulty === 'hard' ? 0.6 : settings.difficulty === 'easy' ? 0.15 : 0.35);
+          
+          if (isFighter) {
+            // Spawn enemy red plane
+            const size = 50;
+            obstacles.push({
+              id: `enemy_plane_${Date.now()}`,
+              type: 'ENEMY_PLANE',
+              x: GAME_WIDTH + 60,
+              y: size + Math.random() * (GAME_HEIGHT - size * 2),
+              width: size + 6,
+              height: size - 10,
+              vx: -(2.8 + Math.random() * 1.8) * speedMultiplier,
+              vy: Math.sin(Math.random() * 10) * 0.65, // small wavy path
+              health: settings.difficulty === 'hard' ? 2 : 1,
+              maxHealth: settings.difficulty === 'hard' ? 2 : 1,
+              jitterOffset: Math.random() * 200,
+              rotation: 0,
+              rotationSpeed: 0,
+              shootCooldown: 80 + Math.random() * 100,
+            });
+          } else {
+            // Spawn big charcoal storm cloud
+            const width = 60 + Math.random() * 45;
+            const height = 45 + Math.random() * 30;
+            obstacles.push({
+              id: `black_cloud_${Date.now()}`,
+              type: 'BLACK_CLOUD',
+              x: GAME_WIDTH + 100,
+              y: height + Math.random() * (GAME_HEIGHT - height * 2.2),
+              width,
+              height,
+              vx: -(1.8 + Math.random() * 1.5) * speedMultiplier,
+              vy: 0,
+              health: settings.difficulty === 'easy' ? 1 : 2, // harder clouds require 2 scribbles
+              maxHealth: settings.difficulty === 'easy' ? 1 : 2,
+              jitterOffset: Math.random() * 200,
+              rotation: Math.random() * Math.PI,
+              rotationSpeed: (Math.random() - 0.5) * 0.015,
+            });
+          }
         }
       }
 
-      // C. Golden and bonus crayons star collection spawns (Frame rate compensated timing!)
-      const starSpawnChance = 0.004;
-      if (Math.random() < starSpawnChance * frameComp) {
-        // Decide item category: standard STAR (80%), ammo parachute (15%), or healing hearts (5%)
-        const roll = Math.random();
-        let starType: 'SCORE_STAR' | 'BULLET_RECHARGE' | 'LIFE_HEAL' | 'AMMO_PARACHUTE' = 'SCORE_STAR';
-        if (roll < 0.15 && settings.shootingEnabled) {
-          starType = 'AMMO_PARACHUTE'; // Falling Daniel's Ammo Parachute!
-        } else if (roll > 0.95) {
-          starType = 'LIFE_HEAL'; // rare heal
+      // C. Golden and bonus crayons star collection spawns (Deactivated during Boss phase!)
+      if (!isBossActive) {
+        const starSpawnChance = 0.004;
+        if (Math.random() < starSpawnChance * frameComp) {
+          // Decide item category: standard STAR (80%), ammo parachute (15%), or healing hearts (5%)
+          const roll = Math.random();
+          let starType: 'SCORE_STAR' | 'BULLET_RECHARGE' | 'LIFE_HEAL' | 'AMMO_PARACHUTE' = 'SCORE_STAR';
+          if (roll < 0.15 && settings.shootingEnabled) {
+            starType = 'AMMO_PARACHUTE'; // Falling Daniel's Ammo Parachute!
+          } else if (roll > 0.95) {
+            starType = 'LIFE_HEAL'; // rare heal
+          }
+
+          let sY = 40 + Math.random() * (GAME_HEIGHT - 90);
+          let sX = GAME_WIDTH + 40;
+          let sW = 24;
+          let sH = 24;
+
+          if (starType === 'AMMO_PARACHUTE') {
+            sY = -60; // falls from the absolute top of the sky!
+            sX = 150 + Math.random() * (GAME_WIDTH - 300); // spawned randomly across horizontal screen
+            sW = 46;
+            sH = 70;
+          }
+
+          starCollectibles.push({
+            id: `star_${Date.now()}`,
+            x: sX,
+            y: sY,
+            width: sW,
+            height: sH,
+            collected: false,
+            angle: starType === 'AMMO_PARACHUTE' ? 0 : Math.random() * Math.PI,
+            type: starType,
+          });
         }
-
-        let sY = 40 + Math.random() * (GAME_HEIGHT - 90);
-        let sX = GAME_WIDTH + 40;
-        let sW = 24;
-        let sH = 24;
-
-        if (starType === 'AMMO_PARACHUTE') {
-          sY = -60; // falls from the absolute top of the sky!
-          sX = 150 + Math.random() * (GAME_WIDTH - 300); // spawned randomly across horizontal screen
-          sW = 46;
-          sH = 70;
-        }
-
-        starCollectibles.push({
-          id: `star_${Date.now()}`,
-          x: sX,
-          y: sY,
-          width: sW,
-          height: sH,
-          collected: false,
-          angle: starType === 'AMMO_PARACHUTE' ? 0 : Math.random() * Math.PI,
-          type: starType,
-        });
       }
 
       // 4. ENTITY TICK POSITION RE-EVALUATORS (All frame compensated!)
@@ -586,6 +634,102 @@ export default function GameCanvas({
         if (stateRef.current.screenShake < 0.1) stateRef.current.screenShake = 0;
       }
 
+      // F. Update Supercloud boss AI actions
+      if (stateRef.current.boss) {
+        const boss = stateRef.current.boss;
+
+        // Decrement hit flash timers
+        if (boss.flashFrames > 0) {
+          boss.flashFrames = Math.max(0, boss.flashFrames - frameComp);
+        }
+
+        if (boss.state === 'ENTERING') {
+          // move boss in
+          boss.x -= 2.05 * frameComp;
+          if (newFrameCount % 80 === 0) {
+            audio.playBossWarning();
+            spawnParticles(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, '#e74c3c', 1, "SUPERCLOUD APPROACHING! ⚠");
+          }
+          if (boss.x <= GAME_WIDTH - 210) {
+            boss.x = GAME_WIDTH - 210;
+            boss.state = 'FIGHTING';
+          }
+        } else if (boss.state === 'FIGHTING') {
+          // Hover swaying slightly
+          boss.x = (GAME_WIDTH - 210) + Math.sin(newFrameCount * 0.035) * 12;
+
+          // Float tracking of plane's vertical center
+          const targetY = plane.y + plane.height / 2 - boss.height / 2;
+          const diffY = targetY - boss.y;
+          const maxVY = 1.6 + stateRef.current.level * 0.45;
+          boss.vy = diffY * 0.025;
+          boss.vy = Math.max(-maxVY, Math.min(maxVY, boss.vy));
+          boss.y += boss.vy * frameComp;
+          boss.y = Math.max(20, Math.min(GAME_HEIGHT - boss.height - 20, boss.y));
+
+          // Shoot hail pellets
+          boss.shootCooldown -= frameComp;
+          if (boss.shootCooldown <= 0) {
+            const baseCooldown = Math.max(40, 85 - stateRef.current.level * 7);
+            boss.shootCooldown = baseCooldown + Math.random() * 25;
+
+            audio.playShoot();
+
+            const isAngry = (boss.health / boss.maxHealth) <= 0.5;
+            if (isAngry) {
+              boss.flashFrames = 10;
+              // angry fast wave
+              const angles = [-0.4, -0.2, 0, 0.2, 0.4];
+              const bulletSpeed = 5.2 + stateRef.current.level * 0.45;
+              angles.forEach(ang => {
+                stateRef.current.bullets.push({
+                  id: `bhail_${Date.now()}_${Math.random()}`,
+                  x: boss.x - 10,
+                  y: boss.y + boss.height / 2,
+                  vx: -Math.cos(ang) * bulletSpeed,
+                  vy: Math.sin(ang) * bulletSpeed,
+                  radius: 5,
+                  isEnemy: true,
+                  isHail: true,
+                });
+              });
+              spawnParticles(boss.x - 10, boss.y + boss.height / 2, '#3498db', 4);
+            } else {
+              // standard spray
+              const bulletSpeed = 4.4 + stateRef.current.level * 0.35;
+              const angles = [-0.2, 0, 0.2];
+              angles.forEach(ang => {
+                stateRef.current.bullets.push({
+                  id: `bhail_${Date.now()}_${Math.random()}`,
+                  x: boss.x - 10,
+                  y: boss.y + boss.height / 2,
+                  vx: -Math.cos(ang) * bulletSpeed,
+                  vy: Math.sin(ang) * bulletSpeed,
+                  radius: 4.5,
+                  isEnemy: true,
+                  isHail: true,
+                });
+              });
+            }
+          }
+
+          // Emergency parachute if low ammo
+          if (plane.bullets <= 4 && newFrameCount % 120 === 0) {
+            const parachuteX = 150 + Math.random() * (GAME_WIDTH - 420);
+            stateRef.current.starCollectibles.push({
+              id: `star_recharge_boss_${Date.now()}`,
+              x: parachuteX,
+              y: -50,
+              width: 46,
+              height: 70,
+              collected: false,
+              angle: 0,
+              type: 'AMMO_PARACHUTE',
+            });
+          }
+        }
+      }
+
       // 5. COLLISION DETECTION AND RESPONSE CORE
       
       // Colliders logic
@@ -654,6 +798,83 @@ export default function GameCanvas({
               }
             }
           });
+
+          // Player bullets hitting the Supercloud Boss
+          if (stateRef.current.boss && stateRef.current.boss.state !== 'DEFEATED') {
+            const boss = stateRef.current.boss;
+            const bossBox = {
+              left: boss.x + 10,
+              right: boss.x + boss.width - 10,
+              top: boss.y + 10,
+              bottom: boss.y + boss.height - 10,
+            };
+
+            if (bullet.x > bossBox.left && bullet.x < bossBox.right &&
+                bullet.y > bossBox.top && bullet.y < bossBox.bottom) {
+              
+              bullet.x = 9999; // erase player bullet
+              boss.health--;
+              boss.flashFrames = 10; // trigger hit visual flash
+
+              audio.playDamage(); // soft hit crunch tick
+              
+              // Spark particles
+              spawnParticles(bullet.x, bullet.y, '#e74c3c', 5);
+
+              // Update React state for HP HUD bar
+              setBossHealth(boss.health);
+
+              if (boss.health <= 0) {
+                boss.state = 'DEFEATED';
+                
+                // Multi stage heavy boss explosion SFX
+                audio.playExplode();
+                const bCenterX = boss.x + boss.width / 2;
+                const bCenterY = boss.y + boss.height / 2;
+
+                // Fire off huge crayon dust chunks
+                spawnParticles(bCenterX, bCenterY, '#34495e', 35);
+                spawnParticles(bCenterX, bCenterY, '#c0392b', 20);
+
+                // Multiple explosions animation delay
+                for (let e = 0; e < 5; e++) {
+                  setTimeout(() => {
+                    audio.playExplode();
+                    spawnParticles(
+                      bCenterX + (Math.random() - 0.5) * 85, 
+                      bCenterY + (Math.random() - 0.5) * 65,
+                      Math.random() < 0.5 ? '#f1c40f' : '#2c3e50',
+                      10
+                    );
+                  }, 120 * e);
+                }
+
+                // Award grand level round completion bonus!
+                const levelCapBonus = 1000 * stateRef.current.level;
+                setScore(curr => {
+                  const s = curr + levelCapBonus;
+                  stateRef.current.score = s;
+                  return s;
+                });
+                spawnParticles(bCenterX, bCenterY, '#f1c40f', 1, `+${levelCapBonus} ROUND COMPLETED!`);
+
+                // Increment Level Round!
+                const nextLevel = stateRef.current.level + 1;
+                stateRef.current.level = nextLevel;
+                setLevel(nextLevel);
+
+                // Clean states
+                stateRef.current.boss = null;
+                setBossHealth(null);
+                setBossMaxHealth(null);
+
+                // Play arpeggio
+                setTimeout(() => {
+                  audio.playLevelUp();
+                }, 600);
+              }
+            }
+          }
         }
       });
 
@@ -685,6 +906,26 @@ export default function GameCanvas({
             spawnParticles(obsBox.left + obs.width/2, obsBox.top + obs.height/2, obs.type === 'ENEMY_PLANE' ? '#e74c3c' : '#2c3e50', 10);
           }
         });
+
+        // B2. Plane colliding with active Supercloud Boss body
+        if (stateRef.current.boss && stateRef.current.boss.state === 'FIGHTING') {
+          const boss = stateRef.current.boss;
+          const bossBox = {
+            left: boss.x + 10,
+            right: boss.x + boss.width - 10,
+            top: boss.y + 10,
+            bottom: boss.y + boss.height - 10,
+          };
+
+          if (planeBox.right > bossBox.left &&
+              planeBox.left < bossBox.right &&
+              planeBox.bottom > bossBox.top &&
+              planeBox.top < bossBox.bottom) {
+            
+            triggerHurt();
+            boss.flashFrames = 8; // alert boss hit flashing too
+          }
+        }
       }
 
       // C. Plane colliding with shiny cute stars
@@ -782,7 +1023,8 @@ export default function GameCanvas({
       particles, 
       starCollectibles, 
       frameCount,
-      screenShake 
+      screenShake,
+      boss
     } = stateRef.current;
 
     ctx.save();
@@ -815,6 +1057,11 @@ export default function GameCanvas({
         drawBlackCloud(ctx, obs, frameCount);
       }
     });
+
+    // Draw Supercloud Boss if active!
+    if (boss) {
+      drawSupercloud(ctx, boss, frameCount);
+    }
 
     // 5. Draw active lasers / crayons
     bullets.forEach(bullet => {
@@ -882,7 +1129,7 @@ export default function GameCanvas({
   // Immediate layout render check triggering initially
   useEffect(() => {
     renderCanvas();
-  }, [lives, score, distance, bullets, gameState, isGamePaused]);
+  }, [lives, score, distance, bullets, gameState, isGamePaused, level]);
 
   return (
     <div 
@@ -907,7 +1154,12 @@ export default function GameCanvas({
         </div>
 
         {/* Dynamic score dashboard stats */}
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex items-center gap-2 sm:gap-6">
+          <div className="text-center bg-sky-50 px-1.5 py-0.5 sm:px-2 border border-sky-200 rounded-md">
+            <span className="block text-[8px] sm:text-[9px] text-sky-600 uppercase tracking-widest font-semibold leading-none mb-0.5">Round</span>
+            <span className="text-xs sm:text-sm font-extrabold text-sky-700 leading-none">{level}</span>
+          </div>
+
           <div className="text-center">
             <span className="block text-[8px] sm:text-[9px] text-slate-400 uppercase tracking-widest font-semibold leading-none mb-0.5">Distance</span>
             <span className="text-xs sm:text-sm font-extrabold text-slate-700 leading-none">{distance}m</span>
@@ -1012,6 +1264,24 @@ export default function GameCanvas({
             className="max-w-full max-h-[calc(100vh-82px)] max-h-[calc(100dvh-82px)] sm:max-h-[calc(100dvh-108px)] w-auto h-auto aspect-[850/480] block select-none bg-inherit cursor-pointer touch-none"
             style={{ imageRendering: 'pixelated' }}
           />
+
+          {/* BOSS HEALTH BAR OVERLAY */}
+          {gameState === 'PLAYING' && bossHealth !== null && bossMaxHealth !== null && (
+            <div className="absolute top-3 left-1/3 text-center sm:left-1/2 -translate-x-[40%] sm:-translate-x-1/2 w-48 sm:w-64 bg-[#faf8f2] border-2 border-slate-800 rounded-xl p-1 sm:p-1.5 flex flex-col justify-center items-center shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] sm:shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] z-10 font-mono select-none">
+              <span className="text-[6px] sm:text-[9px] font-black uppercase text-rose-600 mb-0.5 sm:mb-1 leading-none tracking-wide text-center">
+                ☁ SUPERCLOUD ENCOUNTER ☁
+              </span>
+              <div className="w-full bg-slate-100 border border-slate-800 h-2 sm:h-3 rounded overflow-hidden relative">
+                <div 
+                  className="bg-rose-500 h-full border-r border-slate-800 transition-all duration-300"
+                  style={{ width: `${Math.max(0, Math.min(100, (bossHealth / bossMaxHealth) * 100))}%` }}
+                />
+                <span className="absolute inset-0 flex items-center justify-center text-[5px] sm:text-[8px] font-bold text-slate-800 leading-none">
+                  {bossHealth} / {bossMaxHealth} hp
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* INSTRUCTIONS FLINT INTRO (DRAG TO FLY) */}
           {gameState === 'PLAYING' && stateRef.current.frameCount < 120 && (
