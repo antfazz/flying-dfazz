@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { PlaneEntity, Obstacle, FriendlyCloud, Bullet, Particle, StarCollectible } from '../types';
+import { PlaneEntity, Obstacle, FriendlyCloud, Bullet, Particle, StarCollectible, SupercloudBoss } from '../types';
 
 // Deterministic wiggle based on frame groups to create a "boiling" hand-drawn effect
 function getWobble(seed: number, frameCheck: number, maxOffset: number = 1.5): number {
@@ -906,6 +906,122 @@ export function drawParticle(
     // Add tiny sketchy lines inside
     ctx.strokeStyle = 'rgba(0,0,0,0.2)';
     ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+// Draw the massive, terrifying, scribbled Supercloud Boss
+export function drawSupercloud(
+  ctx: CanvasRenderingContext2D,
+  boss: SupercloudBoss,
+  frameCheck: number
+) {
+  ctx.save();
+  ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2);
+
+  // Gentle float scale surge
+  const hoverScale = 1.0 + Math.sin(frameCheck * 0.08) * 0.03;
+  ctx.scale(hoverScale, hoverScale);
+
+  const seed = 918;
+  const w = boss.width;
+  const h = boss.height;
+
+  // Visual flash on impact
+  const isFlashing = boss.flashFrames > 0 && Math.floor(frameCheck / 3) % 2 === 0;
+  
+  // Fill color - standard is dark charcoal purple slate
+  ctx.fillStyle = isFlashing ? 'rgba(231, 76, 60, 0.85)' : 'rgba(52, 73, 94, 0.9)'; 
+  
+  ctx.beginPath();
+  const scallopsCount = 14;
+  for (let i = 0; i < scallopsCount; i++) {
+    const angle = (i / scallopsCount) * Math.PI * 2;
+    const rCurrent = (w * 0.45) + Math.sin(angle * 4 + seed) * 12 + getWobble(seed + i, frameCheck, 3);
+    const px = Math.cos(angle) * rCurrent;
+    const py = Math.sin(angle) * rCurrent;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Outlines style
+  ctx.strokeStyle = isFlashing ? '#ffffff' : '#1a252f';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Dense cross hatch graphite lines inside
+  ctx.strokeStyle = isFlashing ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.35)';
+  ctx.lineWidth = 1.8;
+  for (let xOffset = -w/2.5; xOffset < w/2.5; xOffset += 12) {
+    drawSketchLine(ctx, xOffset - 12, -h/2.5, xOffset + 12, h/2.5, ctx.strokeStyle, 1.8, frameCheck, seed + xOffset);
+    drawSketchLine(ctx, xOffset + 12, -h/2.5, xOffset - 12, h/2.5, ctx.strokeStyle, 1.8, frameCheck, seed + xOffset + 100);
+  }
+
+  // Draw an angry boss face! 
+  // 1. Double electric yellow glowing eyes
+  ctx.save();
+  ctx.strokeStyle = '#f1c40f'; 
+  ctx.lineWidth = 3.5;
+  
+  // Left side V eye
+  ctx.save();
+  ctx.translate(-24, -10);
+  ctx.beginPath();
+  ctx.moveTo(-8, -4);
+  ctx.lineTo(4, 4);
+  ctx.lineTo(10, -6);
+  ctx.stroke();
+  ctx.restore();
+
+  // Right side V eye
+  ctx.save();
+  ctx.translate(24, -10);
+  ctx.beginPath();
+  ctx.moveTo(8, -4);
+  ctx.lineTo(-4, 4);
+  ctx.lineTo(-10, -6);
+  ctx.stroke();
+  ctx.restore();
+
+  // 2. Screaming zigzag jagged red mouth (with filled blackness for hollow scream)
+  ctx.strokeStyle = '#c0392b'; 
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-35, 12);
+  ctx.lineTo(-20, 22);
+  ctx.lineTo(-5, 12);
+  ctx.lineTo(10, 22);
+  ctx.lineTo(25, 12);
+  ctx.lineTo(35, 22);
+  ctx.lineTo(25, 20);
+  ctx.lineTo(10, 15);
+  ctx.lineTo(-5, 20);
+  ctx.lineTo(-20, 15);
+  ctx.lineTo(-35, 12);
+  ctx.closePath();
+  ctx.fillStyle = '#111111';
+  ctx.fill();
+  ctx.stroke();
+  
+  ctx.restore();
+
+  // Visual lightning trailing at bottom
+  if (Math.floor(frameCheck / 12) % 2 === 0) {
+    ctx.strokeStyle = '#f39c12';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-30, h * 0.28);
+    ctx.lineTo(-34 + Math.sin(frameCheck/4)*6, h * 0.28 + 20);
+    ctx.lineTo(-24, h * 0.28 + 32);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(30, h * 0.28);
+    ctx.lineTo(26 + Math.cos(frameCheck/4)*6, h * 0.28 + 20);
+    ctx.lineTo(34, h * 0.28 + 32);
     ctx.stroke();
   }
 
