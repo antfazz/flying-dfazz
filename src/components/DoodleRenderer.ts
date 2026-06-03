@@ -861,17 +861,96 @@ export function drawBullet(
   ctx.translate(bullet.x, bullet.y);
 
   if (bullet.isEnemy) {
-    // Enemy bullet: small aggressive graphite dots
-    ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.arc(0, 0, 4, 0, Math.PI * 2);
-    ctx.fill();
-    // Scribble halo
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(0, 0, 7, 0, Math.PI * 2);
-    ctx.stroke();
+    if (bullet.isLightning) {
+      // 1. Lightning bolt projectile (Boss Level 1 - Kite)
+      ctx.strokeStyle = '#ff6b00'; // Vibrant school-crayon orange
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      
+      const seed = Math.floor(bullet.x) % 10;
+      const wobble = Math.sin(frameCheck * 0.4) * 3;
+      
+      // Jagged bolt shape
+      ctx.moveTo(12, -2 + wobble);
+      ctx.lineTo(2, 6);
+      ctx.lineTo(-1, -2);
+      ctx.lineTo(-12, 6 - wobble);
+      ctx.stroke();
+
+      // White hot core
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else if (bullet.isFireball) {
+      // 2. Fireball projectile (Boss Level 3 - Helicopter)
+      const seed = Math.floor(bullet.x) % 10;
+      const radius = bullet.radius || 7;
+      
+      // Outer fire halo
+      ctx.fillStyle = '#e67e22'; // Orange
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner yellow flame core
+      ctx.fillStyle = '#f1c40f'; 
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.6 + Math.sin(frameCheck * 0.3 + seed) * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Red outline crayon stroke
+      ctx.strokeStyle = '#e74c3c';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Flame sparks trailing backwards (toward right +x since moving left)
+      ctx.strokeStyle = '#e67e22';
+      ctx.lineWidth = 1.8;
+      const trail = 14 + Math.sin(frameCheck * 0.35 + seed) * 6;
+      ctx.beginPath();
+      ctx.moveTo(radius - 2, -3);
+      ctx.lineTo(radius - 2 + trail, -1);
+      ctx.moveTo(radius - 1, 0);
+      ctx.lineTo(radius - 1 + trail + 4, 1);
+      ctx.moveTo(radius - 2, 3);
+      ctx.lineTo(radius - 2 + trail, 2);
+      ctx.stroke();
+    } else if (bullet.isLaser) {
+      // 3. Long UFO laser beam projectile (Boss Level 4 - UFO)
+      ctx.save();
+      ctx.strokeStyle = '#e74c3c'; // Crimson neon laser beam
+      ctx.lineWidth = 5.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-45, 0);
+      ctx.lineTo(45, 0);
+      ctx.stroke();
+
+      // Brilliant white-hot laser core
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-41, 0);
+      ctx.lineTo(41, 0);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      // Enemy bullet: small aggressive graphite dots (Standard / level 2 Supercloud hail)
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+      // Scribble halo
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   } else {
     // Player bullet: custom colored crayon stick or missile!
     // Drawn like a little sharpened drawing pencil/crayon shooting across
@@ -1072,3 +1151,576 @@ export function drawSupercloud(
 
   ctx.restore();
 }
+
+// Draw the beautiful, fluttering, colored Kite Boss (Level 1)
+export function drawKite(
+  ctx: CanvasRenderingContext2D,
+  boss: SupercloudBoss,
+  frameCheck: number
+) {
+  ctx.save();
+  ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2);
+
+  // Fluttering angle sway to feel like a kite riding heavy winds
+  const swayAngle = Math.sin(frameCheck * 0.1) * 0.12; 
+  ctx.rotate(swayAngle);
+
+  // Gentle layout floating lift scaling
+  const scale = 1.0 + Math.sin(frameCheck * 0.08) * 0.03;
+  ctx.scale(scale, scale);
+
+  const seed = 301;
+  const w = boss.width;
+  const h = boss.height;
+
+  // Flash on damage impact
+  const isFlashing = boss.flashFrames > 0 && Math.floor(frameCheck / 3) % 2 === 0;
+
+  // Outer Diamond Coordinate points
+  const topX = 0, topY = -h/2 + getWobble(seed, frameCheck, 1.5);
+  const rightX = w/2 + getWobble(seed+1, frameCheck, 1.5), rightY = 0;
+  const bottomX = 0, bottomY = h/2 + getWobble(seed+2, frameCheck, 1.5);
+  const leftX = -w/2 + getWobble(seed+3, frameCheck, 1.5), leftY = 0;
+
+  // Fill quadrants with child coloring crayon colors
+  if (isFlashing) {
+    ctx.fillStyle = 'rgba(231, 76, 60, 0.85)';
+    ctx.beginPath();
+    ctx.moveTo(topX, topY);
+    ctx.lineTo(rightX, rightY);
+    ctx.lineTo(bottomX, bottomY);
+    ctx.lineTo(leftX, leftY);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    // Quadrant 1: Top-Left (Vibrant Yellow)
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.moveTo(topX, topY);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(leftX, leftY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Quadrant 2: Top-Right (Energetic Crayon Red)
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.moveTo(topX, topY);
+    ctx.lineTo(rightX, rightY);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Quadrant 3: Bottom-Left (Sunny Crayon Orange)
+    ctx.fillStyle = '#e67e22';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(bottomX, bottomY);
+    ctx.lineTo(leftX, leftY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Quadrant 4: Bottom-Right (Bright Desk Blue)
+    ctx.fillStyle = '#3498db';
+    ctx.beginPath();
+    ctx.moveTo(rightX, rightY);
+    ctx.lineTo(bottomX, bottomY);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Draw warm colored stripes crayon texture curves inside
+  ctx.strokeStyle = isFlashing ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1.4;
+  for (let offset = -w/3; offset < w/3; offset += 15) {
+    drawSketchLine(ctx, offset, -h/4, offset, h/4, ctx.strokeStyle, 1.3, frameCheck, seed + offset);
+  }
+
+  // Outline diamond border frame
+  ctx.strokeStyle = isFlashing ? '#ffffff' : '#1e272e';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(topX, topY);
+  ctx.lineTo(rightX, rightY);
+  ctx.lineTo(bottomX, bottomY);
+  ctx.lineTo(leftX, leftY);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Draw wooden cross bars (kite frame spars)
+  ctx.strokeStyle = isFlashing ? '#ffffff' : '#4a5568';
+  ctx.lineWidth = 2.5;
+  drawSketchLine(ctx, topX, topY, bottomX, bottomY, ctx.strokeStyle, 2.2, frameCheck, seed + 10);
+  drawSketchLine(ctx, leftX, leftY, rightX, rightY, ctx.strokeStyle, 2.2, frameCheck, seed + 20);
+
+  // ANGRY FACE (from standard evil kite illustration)
+  // 1. Angry Eyebrows: black bold V shape
+  ctx.strokeStyle = isFlashing ? '#ffffff' : '#000000';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-20, -22);
+  ctx.lineTo(0, -9);
+  ctx.lineTo(20, -22);
+  ctx.stroke();
+
+  // 2. Large round cartoon eyes
+  const eyeR = 10;
+  const leftEyeX = -13, leftEyeY = -9;
+  const rightEyeX = 13, rightEyeY = -9;
+
+  // Left Eye Backing
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(leftEyeX, leftEyeY, eyeR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = isFlashing ? '#ffffff' : '#000000';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Left Pupil (moves with frame count)
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(leftEyeX + Math.sin(frameCheck * 0.06) * 1.5, leftEyeY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Right Eye Backing
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(rightEyeX, rightEyeY, eyeR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Right Pupil
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(rightEyeX + Math.sin(frameCheck * 0.06) * 1.5, rightEyeY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 3. Open screaming oval mouth with scary teeth
+  const mouthW = 26, mouthH = 18;
+  const mouthX = 0, mouthY = 14;
+
+  ctx.fillStyle = '#111111'; // throat depth
+  ctx.beginPath();
+  ctx.arc(mouthX, mouthY, mouthW/2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = isFlashing ? '#ffffff' : '#000000';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Sharp scribbled teeth
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  // Upper sharp points
+  ctx.moveTo(-mouthW/2, mouthY - 1);
+  ctx.lineTo(-mouthW/3, mouthY + 4);
+  ctx.lineTo(-mouthW/6, mouthY - 1);
+  ctx.lineTo(0, mouthY + 4);
+  ctx.lineTo(mouthW/6, mouthY - 1);
+  ctx.lineTo(mouthW/3, mouthY + 4);
+  ctx.lineTo(mouthW/2, mouthY - 1);
+  // Lower sharp points
+  ctx.lineTo(mouthW/3, mouthY + 1);
+  ctx.lineTo(mouthW/6, mouthY - 4);
+  ctx.lineTo(0, mouthY + 1);
+  ctx.lineTo(-mouthW/6, mouthY - 4);
+  ctx.lineTo(-mouthW/3, mouthY + 1);
+  ctx.lineTo(-mouthW/2, mouthY - 1);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore(); // Stop rotated diamond matrix scale
+
+  // 4. DRAW COLOURED RIBBON ON WIGGLY KITE TAIL (rendered globally relative to translated center)
+  ctx.save();
+  ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2);
+
+  ctx.strokeStyle = '#2d3748';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  // Start coordinate from base of diamond with rotation correction
+  const dyStartX = bottomX * Math.cos(swayAngle) - bottomY * Math.sin(swayAngle);
+  const dyStartY = bottomX * Math.sin(swayAngle) + bottomY * Math.cos(swayAngle);
+  ctx.moveTo(dyStartX, dyStartY);
+
+  const tailSegments: {x: number, y: number}[] = [];
+  const totalSteps = 45;
+  for (let s = 0; s <= totalSteps; s++) {
+    const t = s / totalSteps;
+    const wave = Math.sin(frameCheck * 0.12 - s * 0.25) * 11 * (t + 0.35);
+    const tx = dyStartX + t * 85 + Math.cos(frameCheck * 0.08) * 6;
+    const ty = dyStartY + t * 145 + wave;
+    tailSegments.push({ x: tx, y: ty });
+    if (s > 0) ctx.lineTo(tx, ty);
+  }
+  ctx.stroke();
+
+  // Draw 4 gorgeous Bowtie ribbons spaced along tail
+  const bowtieIndices = [10, 21, 32, 42];
+  const bowtieColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71'];
+
+  bowtieIndices.forEach((idx, bIdx) => {
+    const pt = tailSegments[idx];
+    if (pt) {
+      ctx.save();
+      ctx.translate(pt.x, pt.y);
+      ctx.rotate(Math.sin(frameCheck * 0.1 + idx) * 0.45);
+      
+      // Draw bowtie wings
+      ctx.fillStyle = bowtieColors[bIdx % bowtieColors.length];
+      ctx.beginPath();
+      ctx.moveTo(-9, -6);
+      ctx.lineTo(9, 6);
+      ctx.lineTo(9, -6);
+      ctx.lineTo(-9, 6);
+      ctx.closePath();
+      ctx.fill();
+
+      // Ribbon outline
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+
+      // Knot center dot
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+
+  ctx.restore();
+}
+
+// Draw Daniel's Helicopter Boss (Level 3)
+export function drawHelicopter(
+  ctx: CanvasRenderingContext2D,
+  boss: SupercloudBoss,
+  frameCheck: number
+) {
+  ctx.save();
+  ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2);
+
+  // Standard rapid high-frequency engine vibration shake
+  const shakeOffset = Math.sin(frameCheck * 0.6) * 1.5;
+  ctx.translate(0, shakeOffset);
+
+  const seed = 542;
+  const w = boss.width;
+  const h = boss.height;
+
+  // Flash on damage
+  const isFlashing = boss.flashFrames > 0 && Math.floor(frameCheck / 3) % 2 === 0;
+
+  // Yellow/Orange bright Rescue-style crayon cabin body
+  const bodyColor = isFlashing ? 'rgba(231, 76, 60, 0.85)' : '#f1c40f';
+  const lineStroke = isFlashing ? '#ffffff' : '#2b2b2b';
+  const windowFill = isFlashing ? 'rgba(255,255,255,0.7)' : 'rgba(224, 247, 250, 0.9)';
+
+  // 1. Draw Tail Boom & Tail Fin FIRST (drawn on right +x, cabin face is pointing left -x)
+  ctx.save();
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(10, 10);
+  ctx.lineTo(w * 0.45, 10);
+  ctx.lineTo(w * 0.45, -15); // fins neck
+  ctx.lineTo(w * 0.52, -32); // fin top
+  ctx.lineTo(w * 0.62, -28); // fin back corner
+  ctx.lineTo(w * 0.62, 18); // tail gear backing
+  ctx.lineTo(w * 0.45, 18);
+  ctx.lineTo(10, 15);
+  ctx.closePath();
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.stroke();
+
+  // Draw spinning tail rotor wheel
+  const trX = w * 0.58;
+  const trY = 10;
+  ctx.beginPath();
+  ctx.arc(trX, trY, 13, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.translate(trX, trY);
+  ctx.rotate(frameCheck * 0.25);
+  for (let k = 0; k < 4; k++) {
+    ctx.rotate(Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(13, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Draw bold comic "42" on tail fin top
+  ctx.fillStyle = lineStroke;
+  ctx.font = 'bold 15px "Comic Sans MS", cursive, sans-serif';
+  ctx.fillText("42", w * 0.48, -8);
+  ctx.restore();
+
+  // 2. Skids bracket
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 3.5;
+  drawSketchLine(ctx, -25, 28, -25, 42, ctx.strokeStyle, 3.5, frameCheck, seed + 1);
+  drawSketchLine(ctx, 15, 28, 20, 42, ctx.strokeStyle, 3.5, frameCheck, seed + 2);
+  // main ground bar
+  drawSketchLine(ctx, -48, 42, 38, 42, ctx.strokeStyle, 4, frameCheck, seed + 3);
+
+  // 3. Cabin Bulbous Body
+  ctx.beginPath();
+  const radiusX = 46 + getWobble(seed + 4, frameCheck, 1.2);
+  const radiusY = 36 + getWobble(seed + 5, frameCheck, 1.2);
+  ctx.ellipse(-12, 4, radiusX, radiusY, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bodyColor;
+  ctx.fill();
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+
+  // Paint crayon internal shading on body
+  ctx.strokeStyle = isFlashing ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1.2;
+  for (let lx = -40; lx < 15; lx += 11) {
+    drawSketchLine(ctx, lx, -12, lx - 8, 20, ctx.strokeStyle, 1.2, frameCheck, seed + lx);
+  }
+
+  // 4. Large bold "42" on cabin side (from the drawing)
+  ctx.fillStyle = lineStroke;
+  ctx.font = 'black bold 34px "Comic Sans MS", cursive, sans-serif';
+  ctx.fillText("42", -10, 16);
+
+  // 5. Front cockpit canopy glass cutout
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(-22, -6, 21, 18, -0.08, Math.PI, Math.PI * 2);
+  ctx.lineTo(-12, 8);
+  ctx.lineTo(-41, 1);
+  ctx.closePath();
+  ctx.fillStyle = windowFill;
+  ctx.fill();
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // 6. Crazy large round cartoon eye in cabin with absolute furious eyebrow
+  const eyeCX = -25, eyeCY = -8;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(eyeCX, eyeCY, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Pupil
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(eyeCX - 2, eyeCY, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Angry deep diagonal eyebrow line
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(eyeCX - 13, eyeCY - 11);
+  ctx.lineTo(eyeCX + 7, eyeCY - 2);
+  ctx.stroke();
+
+  // Grumpy downturned lips line at cabin nose
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(-42, 11, 8, Math.PI * 1.7, Math.PI * 2.1);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // 7. Top rotor shaft and rotating blades
+  const shaftX = -10, shaftY = -31;
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 3.5;
+  drawSketchLine(ctx, shaftX, -28, shaftX, shaftY, ctx.strokeStyle, 3.5, frameCheck, seed + 8);
+
+  ctx.save();
+  ctx.translate(shaftX, shaftY);
+  ctx.rotate(frameCheck * 0.45); // Spinner rotation
+
+  // Hub crown
+  ctx.fillStyle = lineStroke;
+  ctx.beginPath();
+  ctx.arc(0, 0, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw 4 helicopter rotor spinning blades
+  for (let m = 0; m < 4; m++) {
+    ctx.rotate(Math.PI / 2);
+    ctx.beginPath();
+    ctx.ellipse(40, 0, 42, 5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = isFlashing ? 'rgba(255,255,255,0.7)' : 'rgba(210, 218, 226, 0.75)';
+    ctx.fill();
+    ctx.strokeStyle = lineStroke;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Red tips as marker drawing style
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.arc(80, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// Draw UFO Final Boss (Level 4)
+export function drawUFO(
+  ctx: CanvasRenderingContext2D,
+  boss: SupercloudBoss,
+  frameCheck: number
+) {
+  ctx.save();
+  ctx.translate(boss.x + boss.width / 2, boss.y + boss.height / 2);
+
+  // Rapid technological vibration
+  const vibX = (Math.random() - 0.5) * 1.5;
+  const vibY = (Math.random() - 0.5) * 1.5;
+  ctx.translate(vibX, vibY);
+
+  // Hover fluid tilt rotation based on vertical speeds
+  const tilt = Math.sin(frameCheck * 0.14) * 0.05 + (boss.vy * 0.025);
+  ctx.rotate(tilt);
+
+  const seed = 902;
+  const w = boss.width;
+  const h = boss.height;
+
+  // Flash on damage
+  const isFlashing = boss.flashFrames > 0 && Math.floor(frameCheck / 3) % 2 === 0;
+
+  // UFO colors specified by user hand-drawn image:
+  // Dome canopy is charcoal blue-grey, saucer rim is lavender light blue-grey, bottom is dark slate.
+  const domeColor = isFlashing ? 'rgba(231, 76, 60, 0.85)' : '#4a5568';
+  const rimColor = isFlashing ? 'rgba(255,255,255,0.9)' : '#a0aec0';
+  const bottomColor = isFlashing ? 'rgba(231, 76, 60, 0.7)' : '#2d3748';
+  const lineStroke = isFlashing ? '#ffffff' : '#111111';
+
+  // 1. Bottom rounded saucer plate hull
+  ctx.fillStyle = bottomColor;
+  ctx.beginPath();
+  ctx.ellipse(0, h * 0.22, w * 0.35, h * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 2. Rounded clear dome canopy bubble (alien dome)
+  ctx.fillStyle = domeColor;
+  ctx.beginPath();
+  ctx.arc(0, -h * 0.07, w * 0.27, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+
+  // Glass curve shine highlights
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, -h * 0.07, w * 0.21, Math.PI * 1.05, Math.PI * 1.35);
+  ctx.stroke();
+
+  // 3. Wide main Saucer horizontal Rim plate
+  ctx.fillStyle = rimColor;
+  ctx.beginPath();
+  ctx.ellipse(0, h * 0.05, w * 0.49, h * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = lineStroke;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Internal pastel shading wax scribbles
+  ctx.strokeStyle = isFlashing ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)';
+  ctx.lineWidth = 1;
+  for (let ox = -w/2.4; ox < w/2.4; ox += 13) {
+    drawSketchLine(ctx, ox, -4, ox - 4, h * 0.14, ctx.strokeStyle, 1, frameCheck, seed + ox);
+  }
+
+  // 4. Five glowing active light circular ports: (colors left-to-right: Red, Orange, Green, Yellow, Red)
+  const portColors = ['#f56565', '#ed8936', '#48bb78', '#ecc94b', '#f56565'];
+  const portCount = 5;
+  const portRadius = 8.5;
+
+  for (let pIdx = 0; pIdx < portCount; pIdx++) {
+    const ratio = (pIdx / (portCount - 1)) - 0.5; // -0.5 to +0.5
+    const portX = ratio * w * 0.74;
+    const portY = h * 0.05 + Math.sin(ratio * Math.PI) * 2; // curved layout placement
+
+    // Lights sequenced cycle effect!
+    const tracker = Math.floor(frameCheck / 10) % portCount;
+    const activeSpark = pIdx === tracker;
+
+    ctx.save();
+    ctx.translate(portX, portY);
+
+    ctx.fillStyle = activeSpark ? '#ffffff' : portColors[pIdx];
+    ctx.beginPath();
+    ctx.arc(0, 0, portRadius + (activeSpark ? 1.5 : 0), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = lineStroke;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Radiant circle outer glow
+    if (activeSpark) {
+      ctx.strokeStyle = portColors[pIdx];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, portRadius + 4.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 5. Electric thruster sparks from underbelly
+  if (Math.floor(frameCheck / 8) % 2 === 0) {
+    ctx.strokeStyle = '#3182ce';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-16, h * 0.3);
+    ctx.lineTo(-21 + Math.random()*8, h * 0.3 + 14);
+    ctx.lineTo(-12, h * 0.3 + 22);
+    this && ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(16, h * 0.3);
+    ctx.lineTo(11 + Math.random()*8, h * 0.3 + 14);
+    ctx.lineTo(21, h * 0.3 + 22);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// Master Boss drawing dispatcher function
+export function drawBoss(
+  ctx: CanvasRenderingContext2D,
+  boss: SupercloudBoss,
+  frameCheck: number
+) {
+  const type = boss.type || 'SUPERCLOUD';
+  if (type === 'KITE') {
+    drawKite(ctx, boss, frameCheck);
+  } else if (type === 'HELICOPTER') {
+    drawHelicopter(ctx, boss, frameCheck);
+  } else if (type === 'UFO') {
+    drawUFO(ctx, boss, frameCheck);
+  } else {
+    drawSupercloud(ctx, boss, frameCheck);
+  }
+}
+
