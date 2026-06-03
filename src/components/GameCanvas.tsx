@@ -5,7 +5,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { GameState, GameSettings, PlaneEntity, Obstacle, FriendlyCloud, Bullet, Particle, StarCollectible, SupercloudBoss } from '../types';
-import { drawNotebookBackground, drawDoodlePlane, drawFriendlyCloud, drawBlackCloud, drawEnemyPlane, drawStarCollectible, drawBullet, drawParticle, drawSupercloud } from './DoodleRenderer';
+import { drawNotebookBackground, drawDoodlePlane, drawFriendlyCloud, drawBlackCloud, drawEnemyPlane, drawStarCollectible, drawBullet, drawParticle, drawBoss } from './DoodleRenderer';
 import { audio } from '../utils/audio';
 import { 
   Heart, 
@@ -371,27 +371,58 @@ export default function GameCanvas({
         const roundedDist = Math.round(stateRef.current.distance);
         setDistance(roundedDist);
 
-        // Spawn Supercloud boss check every 400 distance units
+        // Spawn boss check every 400 distance units
         const BOSS_INTERVAL = 400;
         if (roundedDist > 0 && roundedDist >= stateRef.current.level * BOSS_INTERVAL) {
           audio.playBossWarning();
 
-          const bossMaxHp = 12 + stateRef.current.level * 4; // 16 health at Round 1, scaling up
+          const bossTypes: ('KITE' | 'SUPERCLOUD' | 'HELICOPTER' | 'UFO')[] = ['KITE', 'SUPERCLOUD', 'HELICOPTER', 'UFO'];
+          const currentLevelIndex = (stateRef.current.level - 1) % 4;
+          const bType = bossTypes[currentLevelIndex];
+
+          let bWidth = 140;
+          let bHeight = 90;
+          let bHp = 16 + stateRef.current.level * 4;
+          let approachMessage = "BOSS INCOMING!";
+
+          if (bType === 'KITE') {
+            bWidth = 100;
+            bHeight = 110;
+            bHp = 12 + stateRef.current.level * 4;
+            approachMessage = "THE EVIL KITE APPROACHING! 🪁";
+          } else if (bType === 'SUPERCLOUD') {
+            bWidth = 140;
+            bHeight = 90;
+            bHp = 16 + stateRef.current.level * 4;
+            approachMessage = "THE SUPERCLOUD APPROACHING! ☁";
+          } else if (bType === 'HELICOPTER') {
+            bWidth = 140;
+            bHeight = 95;
+            bHp = 20 + stateRef.current.level * 4;
+            approachMessage = "DANIEL'S COPTER APPROACHING! 🚁";
+          } else if (bType === 'UFO') {
+            bWidth = 130;
+            bHeight = 75;
+            bHp = 24 + stateRef.current.level * 4;
+            approachMessage = "MYSTERIOUS UFO APPROACHING! 🛸";
+          }
+
           stateRef.current.boss = {
+            type: bType,
             x: GAME_WIDTH + 150,
-            y: GAME_HEIGHT / 2 - 45,
-            width: 140,
-            height: 90,
-            health: bossMaxHp,
-            maxHealth: bossMaxHp,
+            y: GAME_HEIGHT / 2 - bHeight / 2,
+            width: bWidth,
+            height: bHeight,
+            health: bHp,
+            maxHealth: bHp,
             vy: 0,
             shootCooldown: 60,
             state: 'ENTERING',
             flashFrames: 0,
           };
-          setBossHealth(bossMaxHp);
-          setBossMaxHealth(bossMaxHp);
-          spawnParticles(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, '#f1c40f', 1, "SUPERCLOUD APPROACHING!");
+          setBossHealth(bHp);
+          setBossMaxHealth(bHp);
+          spawnParticles(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, '#f1c40f', 1, approachMessage);
         }
       } else {
         const currentBoss = stateRef.current.boss!;
@@ -650,9 +681,10 @@ export default function GameCanvas({
         if (stateRef.current.screenShake < 0.1) stateRef.current.screenShake = 0;
       }
 
-      // F. Update Supercloud boss AI actions
+      // F. Update Boss AI and unique weapon projectile emitters
       if (stateRef.current.boss) {
         const boss = stateRef.current.boss;
+        const bType = boss.type || 'SUPERCLOUD';
 
         // Decrement hit flash timers
         if (boss.flashFrames > 0) {
@@ -664,68 +696,193 @@ export default function GameCanvas({
           boss.x -= 2.05 * frameComp;
           if (newFrameCount % 80 === 0) {
             audio.playBossWarning();
-            spawnParticles(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, '#e74c3c', 1, "SUPERCLOUD APPROACHING! ⚠");
+            const bossNames: Record<string, string> = {
+              'KITE': 'THE EVIL KITE',
+              'SUPERCLOUD': 'THE SUPERCLOUD',
+              'HELICOPTER': "DANIEL'S COPTER",
+              'UFO': 'MYSTERIOUS UFO'
+            };
+            const currentName = bossNames[bType] || 'SUPERCLOUD';
+            spawnParticles(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 50, '#e74c3c', 1, `${currentName} IS APPROACHING! ⚠`);
           }
           if (boss.x <= GAME_WIDTH - 210) {
             boss.x = GAME_WIDTH - 210;
             boss.state = 'FIGHTING';
           }
         } else if (boss.state === 'FIGHTING') {
-          // Hover swaying slightly
-          boss.x = (GAME_WIDTH - 210) + Math.sin(newFrameCount * 0.035) * 12;
+          if (bType === 'KITE') {
+            // Kite: Fluttering, floating, swayed with wind swaying
+            boss.x = (GAME_WIDTH - 210) + Math.cos(newFrameCount * 0.04) * 16;
+            
+            const targetY = plane.y + plane.height / 2 - boss.height / 2 + Math.sin(newFrameCount * 0.045) * 35;
+            const diffY = targetY - boss.y;
+            boss.vy = diffY * 0.015; // loose delayed wind drift
+            const maxVY = 1.3 + stateRef.current.level * 0.35;
+            boss.vy = Math.max(-maxVY, Math.min(maxVY, boss.vy));
+            boss.y += boss.vy * frameComp;
+            boss.y = Math.max(20, Math.min(GAME_HEIGHT - boss.height - 25, boss.y));
 
-          // Float tracking of plane's vertical center
-          const targetY = plane.y + plane.height / 2 - boss.height / 2;
-          const diffY = targetY - boss.y;
-          const maxVY = 1.6 + stateRef.current.level * 0.45;
-          boss.vy = diffY * 0.025;
-          boss.vy = Math.max(-maxVY, Math.min(maxVY, boss.vy));
-          boss.y += boss.vy * frameComp;
-          boss.y = Math.max(20, Math.min(GAME_HEIGHT - boss.height - 20, boss.y));
+          } else if (bType === 'HELICOPTER') {
+            // Helicopter: Hovering and quick sudden climbs or dives
+            boss.x = (GAME_WIDTH - 210) + Math.cos(newFrameCount * 0.065) * 8;
+            
+            const copterPhase = Math.floor(newFrameCount / 130) % 3;
+            let targetY = plane.y + plane.height / 2 - boss.height / 2;
+            let responsiveness = 0.025;
+            let maxVY = 2.0 + stateRef.current.level * 0.45;
+            
+            if (copterPhase === 1) { // abrupt climbs
+              targetY = 30;
+              responsiveness = 0.055;
+              maxVY = 5.2;
+            } else if (copterPhase === 2) { // abrupt dives
+              targetY = GAME_HEIGHT - boss.height - 30;
+              responsiveness = 0.055;
+              maxVY = 5.2;
+            }
+            
+            const diffY = targetY - boss.y;
+            boss.vy = diffY * responsiveness;
+            boss.vy = Math.max(-maxVY, Math.min(maxVY, boss.vy));
+            boss.y += boss.vy * frameComp;
+            boss.y = Math.max(20, Math.min(GAME_HEIGHT - boss.height - 20, boss.y));
 
-          // Shoot hail pellets
+          } else if (bType === 'UFO') {
+            // UFO: Diagonal swift teleport-like slides and instant stops
+            const ufoTimer = Math.floor(newFrameCount / 90);
+            const seedY = Math.sin(ufoTimer * 3.45 + 1.22) * 58;
+            const seedX = Math.cos(ufoTimer * 2.87 - 0.45) * 54;
+            
+            const targetX = (GAME_WIDTH - 230) + seedX;
+            const targetY = (GAME_HEIGHT / 2 - boss.height / 2) + seedY * 2.5; 
+            
+            const diffX = targetX - boss.x;
+            const diffY = targetY - boss.y;
+            
+            const ufoGlideFactor = 0.085; // highly responsive slide
+            boss.x += diffX * ufoGlideFactor * frameComp;
+            boss.vy = diffY * ufoGlideFactor;
+            boss.y += boss.vy * frameComp;
+            boss.y = Math.max(20, Math.min(GAME_HEIGHT - boss.height - 20, boss.y));
+
+          } else {
+            // SUPERCLOUD: Classic hover sway + plane lock
+            boss.x = (GAME_WIDTH - 210) + Math.sin(newFrameCount * 0.035) * 12;
+            const targetY = plane.y + plane.height / 2 - boss.height / 2;
+            const diffY = targetY - boss.y;
+            const maxVY = 1.6 + stateRef.current.level * 0.45;
+            boss.vy = diffY * 0.025;
+            boss.vy = Math.max(-maxVY, Math.min(maxVY, boss.vy));
+            boss.y += boss.vy * frameComp;
+            boss.y = Math.max(20, Math.min(GAME_HEIGHT - boss.height - 20, boss.y));
+          }
+
+          // Shoots projectile
           boss.shootCooldown -= frameComp;
           if (boss.shootCooldown <= 0) {
-            const baseCooldown = Math.max(40, 85 - stateRef.current.level * 7);
-            boss.shootCooldown = baseCooldown + Math.random() * 25;
+            const levelCapIdx = stateRef.current.level;
+            const baseCooldown = Math.max(38, 80 - levelCapIdx * 6);
+            boss.shootCooldown = baseCooldown + Math.random() * 20;
 
             audio.playShoot();
 
             const isAngry = (boss.health / boss.maxHealth) <= 0.5;
-            if (isAngry) {
-              boss.flashFrames = 10;
-              // angry fast wave
-              const angles = [-0.4, -0.2, 0, 0.2, 0.4];
-              const bulletSpeed = 5.2 + stateRef.current.level * 0.45;
-              angles.forEach(ang => {
+
+            if (bType === 'KITE') {
+              // KITE lightning bolts: electric zig-zag bolts shooting straight or wavy
+              const lightningCount = isAngry ? 3 : 2;
+              for (let i = 0; i < lightningCount; i++) {
+                const spreadAngle = (i - (lightningCount - 1) / 2) * 0.16;
                 stateRef.current.bullets.push({
-                  id: `bhail_${Date.now()}_${Math.random()}`,
-                  x: boss.x - 10,
+                  id: `blightning_${Date.now()}_${Math.random()}`,
+                  x: boss.x - 12,
                   y: boss.y + boss.height / 2,
-                  vx: -Math.cos(ang) * bulletSpeed,
-                  vy: Math.sin(ang) * bulletSpeed,
+                  vx: -Math.cos(spreadAngle) * (5.5 + levelCapIdx * 0.4),
+                  vy: Math.sin(spreadAngle) * (5.5 + levelCapIdx * 0.4) + (Math.random() - 0.5) * 0.5,
                   radius: 5,
                   isEnemy: true,
-                  isHail: true,
+                  isLightning: true,
                 });
-              });
-              spawnParticles(boss.x - 10, boss.y + boss.height / 2, '#3498db', 4);
-            } else {
-              // standard spray
-              const bulletSpeed = 4.4 + stateRef.current.level * 0.35;
-              const angles = [-0.2, 0, 0.2];
-              angles.forEach(ang => {
+              }
+              if (isAngry) {
+                boss.flashFrames = 10;
+                spawnParticles(boss.x - 12, boss.y + boss.height / 2, '#ff6b00', 5);
+              }
+            } else if (bType === 'HELICOPTER') {
+              // HELICOPTER fireballs: burning orange cores
+              const fireballCount = isAngry ? 3 : 1;
+              for (let i = 0; i < fireballCount; i++) {
+                const spreadAngle = (i - (fireballCount - 1) / 2) * 0.22;
                 stateRef.current.bullets.push({
-                  id: `bhail_${Date.now()}_${Math.random()}`,
+                  id: `bfireball_${Date.now()}_${Math.random()}`,
                   x: boss.x - 10,
-                  y: boss.y + boss.height / 2,
-                  vx: -Math.cos(ang) * bulletSpeed,
-                  vy: Math.sin(ang) * bulletSpeed,
-                  radius: 4.5,
+                  y: boss.y + boss.height / 2 - 8,
+                  vx: -Math.cos(spreadAngle) * (6.0 + levelCapIdx * 0.45),
+                  vy: Math.sin(spreadAngle) * (6.0 + levelCapIdx * 0.45),
+                  radius: 7,
                   isEnemy: true,
-                  isHail: true,
+                  isFireball: true,
                 });
-              });
+              }
+              if (isAngry) {
+                boss.flashFrames = 10;
+                spawnParticles(boss.x - 10, boss.y + boss.height / 2 - 8, '#e67e22', 6);
+              }
+            } else if (bType === 'UFO') {
+              // UFO lasers: crimson beams that travel extremely fast!
+              const laserCount = isAngry ? 2 : 1;
+              for (let i = 0; i < laserCount; i++) {
+                const spreadAngle = (i - (laserCount - 1) / 2) * 0.18;
+                stateRef.current.bullets.push({
+                  id: `blaser_${Date.now()}_${Math.random()}`,
+                  x: boss.x - 45,
+                  y: boss.y + boss.height / 2,
+                  vx: -Math.cos(spreadAngle) * (8.5 + levelCapIdx * 0.5),
+                  vy: Math.sin(spreadAngle) * (8.5 + levelCapIdx * 0.5),
+                  radius: 4,
+                  isEnemy: true,
+                  isLaser: true,
+                });
+              }
+              if (isAngry) {
+                boss.flashFrames = 10;
+                spawnParticles(boss.x - 45, boss.y + boss.height / 2, '#e74c3c', 7);
+              }
+            } else {
+              // SUPERCLOUD: Classic hail pellet spray
+              if (isAngry) {
+                boss.flashFrames = 10;
+                const angles = [-0.4, -0.2, 0, 0.2, 0.4];
+                const bulletSpeed = 5.2 + levelCapIdx * 0.45;
+                angles.forEach(ang => {
+                  stateRef.current.bullets.push({
+                    id: `bhail_${Date.now()}_${Math.random()}`,
+                    x: boss.x - 10,
+                    y: boss.y + boss.height / 2,
+                    vx: -Math.cos(ang) * bulletSpeed,
+                    vy: Math.sin(ang) * bulletSpeed,
+                    radius: 5,
+                    isEnemy: true,
+                    isHail: true,
+                  });
+                });
+                spawnParticles(boss.x - 10, boss.y + boss.height / 2, '#3498db', 4);
+              } else {
+                const bulletSpeed = 4.4 + levelCapIdx * 0.35;
+                const angles = [-0.2, 0, 0.2];
+                angles.forEach(ang => {
+                  stateRef.current.bullets.push({
+                    id: `bhail_${Date.now()}_${Math.random()}`,
+                    x: boss.x - 10,
+                    y: boss.y + boss.height / 2,
+                    vx: -Math.cos(ang) * bulletSpeed,
+                    vy: Math.sin(ang) * bulletSpeed,
+                    radius: 4.5,
+                    isEnemy: true,
+                    isHail: true,
+                  });
+                });
+              }
             }
           }
 
@@ -1088,9 +1245,9 @@ export default function GameCanvas({
       }
     });
 
-    // Draw Supercloud Boss if active!
+    // Draw Boss if active!
     if (boss) {
-      drawSupercloud(ctx, boss, frameCount);
+      drawBoss(ctx, boss, frameCount);
     }
 
     // 5. Draw active lasers / crayons
