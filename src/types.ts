@@ -74,6 +74,9 @@ export interface Bullet {
   radius: number;
   isEnemy: boolean;
   isHail?: boolean;
+  isLightning?: boolean;
+  isFireball?: boolean;
+  isLaser?: boolean;
 }
 
 export interface Particle {
@@ -101,6 +104,7 @@ export interface StarCollectible {
 }
 
 export interface SupercloudBoss {
+  type?: 'KITE' | 'SUPERCLOUD' | 'HELICOPTER' | 'UFO';
   x: number;
   y: number;
   width: number;
